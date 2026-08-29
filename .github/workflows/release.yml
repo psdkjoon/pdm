@@ -1,0 +1,72 @@
+name: Release
+
+on:
+  push:
+
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux-x64
+            pdm_name: pdm
+            installer_name: pdm-installer
+            installer_asset: pdm-installer-linux-x64
+          - os: windows-latest
+            platform: windows-x64
+            pdm_name: pdm.exe
+            installer_name: pdm-installer.exe
+            installer_asset: pdm-installer-windows-x64.exe
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+
+      - name: Fetch deps (none, but keeps pub cache warm)
+        run: dart pub get
+
+      - name: Read version from pubspec.yaml
+        id: version
+        shell: bash
+        run: echo "version=$(dart run tool/print_version.dart)" >> "$GITHUB_OUTPUT"
+
+      - name: Compile pdm CLI
+        run: dart compile exe bin/pdm.dart -o ${{ matrix.pdm_name }} --define=PDM_VERSION=${{ steps.version.outputs.version }}
+
+      - name: Compile installer stub
+        run: dart compile exe tool/installer.dart -o ${{ matrix.installer_name }}
+
+      - name: Pack self-extracting installer (stub + pdm binary + length footer)
+        run: dart run tool/pack_installer.dart ${{ matrix.installer_name }} ${{ matrix.pdm_name }} ${{ matrix.installer_asset }}
+
+      - name: Make installer executable (Linux)
+        if: runner.os == 'Linux'
+        run: chmod +x ${{ matrix.installer_asset }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.installer_asset }}
+          path: ${{ matrix.installer_asset }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
