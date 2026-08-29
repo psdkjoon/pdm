@@ -10,7 +10,7 @@ dart pub global activate pdm
 ```
 
 Or grab a self-contained installer (no internet needed at install time) from
-the [releases page](https://github.com/psdk/pdm/releases/latest).
+the [releases page](https://github.com/psdkjoon/pdm/releases/latest).
 
 ## Usage
 
