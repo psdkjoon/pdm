@@ -1,32 +1,18 @@
+import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
-const _footerLen = 8;
+import 'generated_payload.dart';
 
 void main(List<String> args) {
-  final selfPath = Platform.resolvedExecutable;
-  final selfBytes = File(selfPath).readAsBytesSync();
+  final payload = base64.decode(pdmPayloadChunks.join());
 
-  if (selfBytes.length <= _footerLen) {
+  if (payload.isEmpty) {
     stderr.writeln(
       'This installer has no embedded payload. Did you run the raw stub '
       'instead of a release asset from GitHub?',
     );
     exit(1);
   }
-
-  final footer = selfBytes.sublist(selfBytes.length - _footerLen);
-  final payloadLen = ByteData.sublistView(footer).getUint64(0, Endian.big);
-
-  if (payloadLen <= 0 || payloadLen > selfBytes.length - _footerLen) {
-    stderr.writeln(
-      'Embedded payload looks corrupted (bad length: $payloadLen).',
-    );
-    exit(1);
-  }
-
-  final payloadStart = selfBytes.length - _footerLen - payloadLen;
-  final payload = selfBytes.sublist(payloadStart, payloadStart + payloadLen);
 
   final installDir = _installDir(args);
   final targetPath = Platform.isWindows
