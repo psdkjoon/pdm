@@ -1,81 +1,86 @@
-name: Release
+name: release
 
 on:
   push:
 
-  workflow_dispatch: {}
-
 jobs:
-  build:
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            platform: linux-x64
-            pdm_name: pdm
-            installer_asset: pdm-installer-linux-x64
-          - os: windows-latest
-            platform: windows-x64
-            pdm_name: pdm.exe
-            installer_asset: pdm-installer-windows-x64.exe
-    runs-on: ${{ matrix.os }}
+  build-linux:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: dart-lang/setup-dart@v1
-        with:
-          sdk: stable
 
-      - name: Fetch deps (none, but keeps pub cache warm)
+      - name: Install dependencies
         run: dart pub get
 
-      - name: Read version from pubspec.yaml
-        id: version
-        shell: bash
-        run: echo "version=$(dart run tool/print_version.dart)" >> "$GITHUB_OUTPUT"
+      - name: Compile pdm
+        run: dart compile exe bin/pdm.dart -o pdm-linux-bin
 
-      - name: Compile pdm CLI
-        run: dart compile exe bin/pdm.dart -o ${{ matrix.pdm_name }} --define=PDM_VERSION=${{ steps.version.outputs.version }}
+      - name: Compile pdmd
+        run: dart compile exe bin/pdmd.dart -o pdmd-linux-bin
 
-      - name: Embed pdm binary into installer payload
-        run: dart run tool/generate_payload.dart ${{ matrix.pdm_name }} tool/generated_payload.dart
-
-      - name: Compile self-extracting installer
-        run: dart compile exe tool/installer.dart -o ${{ matrix.installer_asset }}
-
-      - name: Make installer executable (Linux)
-        if: runner.os == 'Linux'
-        run: chmod +x ${{ matrix.installer_asset }}
+      - name: Build self-contained installer
+        run: |
+          dart run tool/installer.dart generate pdm-linux-bin pdmd-linux-bin tool/installer.dart
+          dart compile exe tool/installer.dart -o pdm-linux-x64
+          git checkout -- tool/installer.dart
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.installer_asset }}
-          path: ${{ matrix.installer_asset }}
+          name: pdm-linux-x64
+          path: pdm-linux-x64
 
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
+  build-windows:
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
       - uses: dart-lang/setup-dart@v1
-        with:
-          sdk: stable
 
-      - name: Read version from pubspec.yaml
+      - name: Install dependencies
+        run: dart pub get
+
+      - name: Compile pdm
+        run: dart compile exe bin/pdm.dart -o pdm-windows-bin.exe
+
+      - name: Compile pdmd
+        run: dart compile exe bin/pdmd.dart -o pdmd-windows-bin.exe
+
+      - name: Build self-contained installer
+        run: |
+          dart run tool/installer.dart generate pdm-windows-bin.exe pdmd-windows-bin.exe tool/installer.dart
+          dart compile exe tool/installer.dart -o pdm-windows-x64.exe
+          git checkout -- tool/installer.dart
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pdm-windows-x64
+          path: pdm-windows-x64.exe
+
+  release:
+    needs: [build-linux, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read version
         id: version
-        run: echo "version=$(dart run tool/print_version.dart)" >> "$GITHUB_OUTPUT"
+        run: echo "version=$(sed -n 's/^version:[[:space:]]*//p' pubspec.yaml)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/download-artifact@v4
         with:
           path: dist
-          merge-multiple: true
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+      - name: Flatten artifacts
+        run: |
+          mkdir -p release
+          cp dist/pdm-linux-x64/pdm-linux-x64 release/pdm-linux-x64
+          cp dist/pdm-windows-x64/pdm-windows-x64.exe release/pdm-windows-x64.exe
+
+      - uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
-          files: dist/*
-          generate_release_notes: true
+          files: |
+            release/pdm-linux-x64
+            release/pdm-windows-x64.exe

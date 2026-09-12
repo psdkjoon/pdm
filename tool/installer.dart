@@ -1,12 +1,61 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'generated_payload.dart';
+const List<String> _pdmPayloadChunks = [];
+const List<String> _pdmdPayloadChunks = [];
 
 void main(List<String> args) {
-  final payload = base64.decode(pdmPayloadChunks.join());
+  if (args.isNotEmpty && args.first == 'generate') {
+    _runGenerate(args.skip(1).toList());
+    return;
+  }
+  _runInstall(args);
+}
 
-  if (payload.isEmpty) {
+const _chunkSize = 76;
+
+void _runGenerate(List<String> args) {
+  if (args.length != 3) {
+    stderr.writeln(
+      'Usage: dart run tool/installer.dart generate <pdm_binary> <pdmd_binary> <output_dart_file>',
+    );
+    exit(1);
+  }
+
+  final pdmPayload = File(args[0]).readAsBytesSync();
+  final pdmdPayload = File(args[1]).readAsBytesSync();
+
+  var source = File(Platform.script.toFilePath()).readAsStringSync();
+  source = source.replaceFirst(
+    RegExp(r'const List<String> _pdmPayloadChunks = \[[\s\S]*?\];'),
+    'const List<String> _pdmPayloadChunks = [\n${_chunkify(pdmPayload).join('\n')}\n];',
+  );
+  source = source.replaceFirst(
+    RegExp(r'const List<String> _pdmdPayloadChunks = \[[\s\S]*?\];'),
+    'const List<String> _pdmdPayloadChunks = [\n${_chunkify(pdmdPayload).join('\n')}\n];',
+  );
+
+  File(args[2]).writeAsStringSync(source);
+  stdout.writeln(
+    'Generated ${args[2]} (pdm ${pdmPayload.length}B, pdmd ${pdmdPayload.length}B)',
+  );
+}
+
+List<String> _chunkify(List<int> payload) {
+  final encoded = base64.encode(payload);
+  final chunks = <String>[];
+  for (var i = 0; i < encoded.length; i += _chunkSize) {
+    final end = (i + _chunkSize < encoded.length) ? i + _chunkSize : encoded.length;
+    chunks.add("  '${encoded.substring(i, end)}',");
+  }
+  return chunks;
+}
+
+void _runInstall(List<String> args) {
+  final pdmPayload = base64.decode(_pdmPayloadChunks.join());
+  final pdmdPayload = base64.decode(_pdmdPayloadChunks.join());
+
+  if (pdmPayload.isEmpty || pdmdPayload.isEmpty) {
     stderr.writeln(
       'This installer has no embedded payload. Did you run the raw stub '
       'instead of a release asset from GitHub?',
@@ -15,21 +64,28 @@ void main(List<String> args) {
   }
 
   final installDir = _installDir(args);
-  final targetPath = Platform.isWindows
+  final pdmPath = Platform.isWindows
       ? '${installDir.path}${Platform.pathSeparator}pdm.exe'
       : '${installDir.path}${Platform.pathSeparator}pdm';
+  final pdmdPath = Platform.isWindows
+      ? '${installDir.path}${Platform.pathSeparator}pdmd.exe'
+      : '${installDir.path}${Platform.pathSeparator}pdmd';
 
   installDir.createSync(recursive: true);
-  File(targetPath).writeAsBytesSync(payload);
+  File(pdmPath).writeAsBytesSync(pdmPayload);
+  File(pdmdPath).writeAsBytesSync(pdmdPayload);
 
   if (!Platform.isWindows) {
-    final chmod = Process.runSync('chmod', ['+x', targetPath]);
-    if (chmod.exitCode != 0) {
-      stderr.writeln('Warning: chmod +x failed: ${chmod.stderr}');
+    for (final path in [pdmPath, pdmdPath]) {
+      final chmod = Process.runSync('chmod', ['+x', path]);
+      if (chmod.exitCode != 0) {
+        stderr.writeln('Warning: chmod +x failed for $path: ${chmod.stderr}');
+      }
     }
   }
 
-  stdout.writeln('Installed pdm -> $targetPath');
+  stdout.writeln('Installed pdm -> $pdmPath');
+  stdout.writeln('Installed pdmd -> $pdmdPath');
   _ensureOnPath(installDir.path);
 }
 

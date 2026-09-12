@@ -1,157 +1,306 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
-
 import 'download_task.dart';
+import 'history.dart';
+import 'hooks.dart';
 import 'models.dart';
 import 'store.dart';
-
-/// Top-level entry point for the library. Owns the task list, persists it,
-/// and runs downloads with a bounded number of concurrent tasks.
 class DownloadManager {
   final TaskStore store;
   final int maxConcurrentTasks;
-  final int defaultConnections;
-
+  final String? downloadDir;
+  final List<DownloadRule> rules;
+  final Map<String, String> onCompleteAliases;
+  final bool notifications;
+  final HistoryLog history;
   final Map<String, TaskRecord> _records = {};
   final Map<String, DownloadTask> _active = {};
-  final _rand = Random();
-
-  final _events = StreamController<TaskRecord>.broadcast();
-
-  /// Fires on every state/progress change for any task.
-  Stream<TaskRecord> get events => _events.stream;
-
+  final Map<String, DateTime> _startedAt = {};
+  final List<String> _queue = [];
+  final _controller = StreamController<TaskRecord>.broadcast();
+  final SpeedLimiter? _globalLimiter;
+  Timer? _scheduleTimer;
   DownloadManager({
     TaskStore? store,
     this.maxConcurrentTasks = 3,
-    this.defaultConnections = 4,
-  }) : store = store ?? TaskStore.defaultLocation() {
-    for (final r in this.store.loadAll()) {
-      if (r.status == DownloadStatus.downloading ||
-          r.status == DownloadStatus.probing) {
-        r.status = DownloadStatus.paused;
+    this.downloadDir,
+    this.rules = const [],
+    this.onCompleteAliases = const {},
+    this.notifications = false,
+    int? globalSpeedLimitBytesPerSec,
+    HistoryLog? history,
+  }) : store = store ?? TaskStore(),
+       history = history ?? HistoryLog(),
+       _globalLimiter = globalSpeedLimitBytesPerSec != null
+           ? SpeedLimiter(globalSpeedLimitBytesPerSec)
+           : null {
+    for (final record in this.store.load()) {
+      if (record.status == DownloadStatus.downloading ||
+          record.status == DownloadStatus.probing) {
+        record.status = DownloadStatus.paused;
       }
-      _records[r.id] = r;
+      final schedule = record.schedule;
+      if (record.status == DownloadStatus.scheduled &&
+          schedule != null &&
+          schedule.onStartup) {
+        record.status = DownloadStatus.queued;
+      }
+      _records[record.id] = record;
     }
+    for (final record in _records.values) {
+      if (record.status == DownloadStatus.queued && !_queue.contains(record.id)) {
+        _queue.add(record.id);
+      }
+    }
+    _scheduleTimer = Timer.periodic(const Duration(seconds: 1), _checkSchedules);
+    _pump();
   }
-
-  List<TaskRecord> list() =>
-      _records.values.toList()
-        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
-
+  Stream<TaskRecord> get events => _controller.stream;
+  List<TaskRecord> get tasks => _records.values.toList();
   TaskRecord? get(String id) => _records[id];
-
-  String _newId() {
-    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-    String id;
-    do {
-      id = List.generate(6, (_) => chars[_rand.nextInt(chars.length)]).join();
-    } while (_records.containsKey(id));
-    return id;
+  void _persist() => store.save(_records.values.toList());
+  void _emit(TaskRecord record) {
+    record.updatedAt = DateTime.now();
+    _controller.add(record);
+    _persist();
   }
-
-  /// Register a new download. Doesn't start it — call [start] (or [startAll]).
-  TaskRecord add(String url, {String? savePath, int? connections}) {
-    final id = _newId();
-    final path = savePath ?? _guessFileName(url);
+  DownloadRule? _matchRule(String url) {
+    for (final rule in rules) {
+      if (rule.matches(url)) return rule;
+    }
+    return null;
+  }
+  TaskRecord? _findDuplicate(String url, String savePath) {
+    for (final record in _records.values) {
+      if (record.status == DownloadStatus.completed ||
+          record.status == DownloadStatus.canceled) {
+        continue;
+      }
+      if (record.url == url || record.savePath == savePath) return record;
+    }
+    return null;
+  }
+  TaskRecord add(
+    String url, {
+    String? savePath,
+    TaskOptions options = const TaskOptions(),
+    bool startPaused = false,
+    Schedule? schedule,
+    bool allowDuplicate = false,
+  }) {
+    final rule = _matchRule(url);
+    final effectiveOptions = rule != null ? options.mergeRule(rule) : options;
+    final path = savePath ?? _inferSavePath(url, ruleDir: rule?.saveDir);
+    if (!allowDuplicate) {
+      final dup = _findDuplicate(url, path);
+      if (dup != null) {
+        throw StateError(
+          'Duplicate of existing task ${dup.id} (same url or save path)',
+        );
+      }
+    }
+    final id = _generateId();
+    final hasSchedule = schedule != null && schedule.isSet;
     final record = TaskRecord(
       id: id,
       url: url,
       savePath: path,
-      connections: connections ?? defaultConnections,
+      options: effectiveOptions,
+      startPaused: startPaused,
+      status: hasSchedule
+          ? DownloadStatus.scheduled
+          : (startPaused ? DownloadStatus.paused : DownloadStatus.queued),
+      schedule: hasSchedule ? schedule : null,
     );
     _records[id] = record;
-    _persist();
+    _emit(record);
+    if (!hasSchedule && !startPaused) _enqueue(id);
     return record;
   }
-
-  String _guessFileName(String url) {
+  String _inferSavePath(String url, {String? ruleDir}) {
     final uri = Uri.parse(url);
-    final last = uri.pathSegments.isNotEmpty
-        ? uri.pathSegments.last
+    final segments = uri.pathSegments;
+    final name = segments.isNotEmpty && segments.last.isNotEmpty
+        ? segments.last
         : 'download';
-    final name = last.isEmpty ? 'download' : last;
-    final home = Platform.environment['HOME'] ?? '.';
-    return '$home/Downloads/$name';
+    final dir = ruleDir ?? downloadDir;
+    if (dir == null || dir.isEmpty) return name;
+    final sep = dir.endsWith('/') ? '' : '/';
+    return '$dir$sep$name';
   }
-
+  String _generateId() {
+    final rand = Random();
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    return List.generate(8, (_) => chars[rand.nextInt(chars.length)]).join();
+  }
+  void _checkSchedules(Timer timer) {
+    final now = DateTime.now();
+    for (final record in _records.values.toList()) {
+      if (record.status != DownloadStatus.scheduled) continue;
+      final schedule = record.schedule;
+      if (schedule == null || schedule.onStartup) continue;
+      final at = schedule.at;
+      if (at != null && !now.isBefore(at)) {
+        record.status = DownloadStatus.queued;
+        _emit(record);
+        _enqueue(record.id);
+      }
+    }
+  }
+  void _rescheduleIfRecurring(TaskRecord record) {
+    final every = record.schedule?.every;
+    if (every == null) return;
+    record.status = DownloadStatus.scheduled;
+    record.schedule = Schedule(at: DateTime.now().add(every), every: every);
+    record.segments = [];
+    record.totalBytes = null;
+    record.error = null;
+    _emit(record);
+  }
+  void _enqueue(String id) {
+    if (!_queue.contains(id)) _queue.add(id);
+    _pump();
+  }
+  String? _nextQueuedId() {
+    String? best;
+    var bestPriority = -1 << 30;
+    for (final id in _queue) {
+      final record = _records[id];
+      if (record == null) continue;
+      final priority = record.options.priority;
+      if (priority > bestPriority) {
+        bestPriority = priority;
+        best = id;
+      }
+    }
+    return best;
+  }
+  void _pump() {
+    while (_active.length < maxConcurrentTasks && _queue.isNotEmpty) {
+      final id = _nextQueuedId();
+      if (id == null) break;
+      _queue.remove(id);
+      final record = _records[id];
+      if (record == null) continue;
+      if (record.status == DownloadStatus.canceled) continue;
+      _startTask(record);
+    }
+  }
+  void _startTask(TaskRecord record) {
+    final task = DownloadTask(record);
+    _startedAt[record.id] = DateTime.now();
+    task.onStateChanged = () => _emit(record);
+    task.onProgress = (_, __) => _emit(record);
+    _active[record.id] = task;
+    task.run(globalLimiter: _globalLimiter).whenComplete(() {
+      _active.remove(record.id);
+      final startedAt = _startedAt.remove(record.id) ?? DateTime.now();
+      _emit(record);
+      _handleTaskFinished(record, startedAt);
+      _pump();
+    });
+  }
+  void _handleTaskFinished(TaskRecord record, DateTime startedAt) {
+    final finished = record.status == DownloadStatus.completed ||
+        record.status == DownloadStatus.failed;
+    if (finished) {
+      history.append(
+        HistoryEntry(
+          id: record.id,
+          url: record.url,
+          savePath: record.savePath,
+          status: record.status,
+          totalBytes: record.downloadedBytes,
+          durationMs: DateTime.now().difference(startedAt).inMilliseconds,
+          finishedAt: DateTime.now(),
+        ),
+      );
+      final hook = record.options.onComplete;
+      if (hook != null && hook.isNotEmpty) {
+        unawaited(
+          runOnComplete(
+            hook,
+            onCompleteAliases,
+            taskId: record.id,
+            url: record.url,
+            savePath: record.savePath,
+            status: record.status.name,
+          ),
+        );
+      }
+      if (notifications) {
+        unawaited(
+          sendNotification(
+            record.status == DownloadStatus.completed
+                ? 'Download complete'
+                : 'Download failed',
+            record.savePath,
+          ),
+        );
+      }
+    }
+    if (record.status == DownloadStatus.completed) {
+      _rescheduleIfRecurring(record);
+    }
+  }
   Future<void> start(String id) async {
     final record = _records[id];
-    if (record == null) throw ArgumentError('No task with id $id');
-    if (_active.containsKey(id)) return;
+    if (record == null) throw ArgumentError('Unknown task id "$id"');
     if (record.status == DownloadStatus.completed) return;
-
-    while (_active.length >= maxConcurrentTasks) {
-      await Future<void>.delayed(const Duration(milliseconds: 200));
-    }
-
-    final task = DownloadTask(record);
-    _active[id] = task;
-    task.onProgress = (_, __) {
-      record.updatedAt = DateTime.now();
-      _events.add(record);
-    };
-    task.onStateChanged = () {
-      record.updatedAt = DateTime.now();
-      _persist();
-      _events.add(record);
-    };
-
-    await task.run();
-    _active.remove(id);
-    _persist();
+    record.status = DownloadStatus.queued;
+    _emit(record);
+    _enqueue(id);
   }
-
-  Future<void> startAll() async {
-    final ids = _records.values
-        .where(
-          (r) =>
-              r.status == DownloadStatus.queued ||
-              r.status == DownloadStatus.paused,
-        )
-        .map((r) => r.id)
-        .toList();
-    await Future.wait(ids.map(start));
-  }
-
   Future<void> pause(String id) async {
     final task = _active[id];
     if (task != null) {
       await task.pause();
-      _active.remove(id);
+      return;
     }
-    _persist();
+    final record = _records[id];
+    if (record != null &&
+        (record.status == DownloadStatus.queued ||
+            record.status == DownloadStatus.scheduled)) {
+      _queue.remove(id);
+      record.status = DownloadStatus.paused;
+      _emit(record);
+    }
   }
-
   Future<void> cancel(String id) async {
     final task = _active[id];
     if (task != null) {
       await task.cancel();
-      _active.remove(id);
-    } else {
-      final r = _records[id];
-      if (r != null) r.status = DownloadStatus.canceled;
+      return;
     }
-    _persist();
+    _queue.remove(id);
+    final record = _records[id];
+    if (record != null) {
+      record.status = DownloadStatus.canceled;
+      _emit(record);
+    }
   }
-
   Future<void> remove(String id, {bool deleteFile = false}) async {
-    await cancel(id);
-    final record = _records.remove(id);
-    if (deleteFile && record != null) {
-      final f = File(record.savePath);
-      if (f.existsSync()) f.deleteSync();
+    if (_active.containsKey(id)) {
+      await cancel(id);
     }
-    _persist();
+    _queue.remove(id);
+    final record = _records[id];
+    if (record != null) {
+      record.status = DownloadStatus.canceled;
+      _emit(record);
+      _records.remove(id);
+      if (deleteFile) {
+        try {
+          final f = File(record.savePath);
+          if (f.existsSync()) f.deleteSync();
+        } catch (_) {}
+      }
+      _persist();
+    }
   }
-
-  void _persist() => store.saveAll(_records.values.toList());
-
-  Future<void> dispose() async {
-    for (final task in _active.values) {
-      await task.pause();
-    }
-    _events.close();
+  void dispose() {
+    _scheduleTimer?.cancel();
+    _controller.close();
   }
 }
