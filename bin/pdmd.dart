@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:io';
+
 import 'package:pdm/src/config.dart';
 import 'package:pdm/src/daemon/daemon_server.dart';
 import 'package:pdm/src/daemon/socket_address.dart';
+
 Future<void> main(List<String> argv) async {
   final config = loadConfig();
   final address = resolveSocketAddress(
@@ -10,7 +12,7 @@ Future<void> main(List<String> argv) async {
     hostOverride: config.daemonHost,
     portOverride: config.daemonPort,
   );
-  await runDaemon(
+  final server = await runDaemon(
     maxConcurrentTasks: config.maxConcurrentTasks,
     address: address,
     downloadDir: expandHome(config.downloadDir),
@@ -19,9 +21,19 @@ Future<void> main(List<String> argv) async {
     notifications: config.notifications,
     globalSpeedLimitBytesPerSec: config.globalSpeedLimitBytesPerSec,
   );
-  if (!Platform.isWindows) {
-    await ProcessSignal.sigterm.watch().first.catchError((_) => ProcessSignal.sigterm);
-  } else {
-    await Completer<void>().future;
+  final done = Completer<void>();
+  Future<void> shutdown() async {
+    if (done.isCompleted) return;
+    await server.stop();
+    done.complete();
   }
+
+  if (!Platform.isWindows) {
+    ProcessSignal.sigterm.watch().first.then((_) => shutdown());
+    ProcessSignal.sigint.watch().first.then((_) => shutdown());
+  } else {
+    ProcessSignal.sigint.watch().first.then((_) => shutdown());
+  }
+  await done.future;
+  exit(0);
 }

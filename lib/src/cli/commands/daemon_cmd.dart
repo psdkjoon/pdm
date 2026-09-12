@@ -1,12 +1,17 @@
 import 'dart:io';
+
 import '../../config.dart';
+import '../../daemon/daemon_client.dart' show DaemonUnavailableException;
 import '../../daemon/daemon_server.dart';
 import '../../service_install.dart';
 import '../context.dart';
 import '../parser.dart';
+
 Future<int> runDaemonCmd(CliContext ctx, ParsedArgs args) async {
   if (args.positionals.isEmpty) {
-    stderr.writeln('Usage: pdm daemon <start|stop|status|enable|disable> [flags]');
+    stderr.writeln(
+      'Usage: pdm daemon <start|stop|status|enable|disable> [flags]',
+    );
     return 1;
   }
   final action = args.positionals.first;
@@ -23,7 +28,10 @@ Future<int> runDaemonCmd(CliContext ctx, ParsedArgs args) async {
           globalSpeedLimitBytesPerSec: ctx.config.globalSpeedLimitBytesPerSec,
         );
         ctx.log('pdm daemon listening (foreground)');
-        await ProcessSignal.sigint.watch().first;
+        final signals = Platform.isWindows
+            ? [ProcessSignal.sigint]
+            : [ProcessSignal.sigint, ProcessSignal.sigterm];
+        await Future.any(signals.map((s) => s.watch().first));
         await server.stop();
         return 0;
       }
@@ -56,18 +64,37 @@ Future<int> runDaemonCmd(CliContext ctx, ParsedArgs args) async {
       }
       final pingResp = await ctx.client.request('ping');
       await ctx.client.close();
-      ctx.log(pingResp.ok ? ctx.theme.success('pdm daemon is running') : ctx.theme.error('unreachable'));
+      ctx.log(
+        pingResp.ok
+            ? ctx.theme.success('pdm daemon is running')
+            : ctx.theme.error('unreachable'),
+      );
       return pingResp.ok ? 0 : 1;
     case 'enable':
-      final result = await installDaemonService();
-      ctx.log(result.success ? ctx.theme.success(result.message) : ctx.theme.error(result.message));
-      return result.success ? 0 : 1;
+      try {
+        final result = await installDaemonService();
+        ctx.log(
+          result.success
+              ? ctx.theme.success(result.message)
+              : ctx.theme.error(result.message),
+        );
+        return result.success ? 0 : 1;
+      } on DaemonUnavailableException catch (e) {
+        stderr.writeln(ctx.theme.error(e.message));
+        return 1;
+      }
     case 'disable':
       final result = await uninstallDaemonService();
-      ctx.log(result.success ? ctx.theme.success(result.message) : ctx.theme.error(result.message));
+      ctx.log(
+        result.success
+            ? ctx.theme.success(result.message)
+            : ctx.theme.error(result.message),
+      );
       return result.success ? 0 : 1;
     default:
-      stderr.writeln('Unknown daemon action "$action" (use start, stop, status, enable, or disable)');
+      stderr.writeln(
+        'Unknown daemon action "$action" (use start, stop, status, enable, or disable)',
+      );
       return 1;
   }
 }

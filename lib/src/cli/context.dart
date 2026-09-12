@@ -1,9 +1,11 @@
 import 'dart:io';
+
 import '../config.dart';
 import '../daemon/daemon_client.dart';
 import '../daemon/socket_address.dart';
 import 'parser.dart';
 import 'theme.dart';
+
 class CliContext {
   final PdmConfig config;
   final CliTheme theme;
@@ -46,6 +48,7 @@ class CliContext {
       client: client,
     );
   }
+
   void log(String message) {
     if (!quiet) stdout.writeln(message);
   }

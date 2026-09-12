@@ -2,6 +2,7 @@ String _ansi(int code, String text, bool colorEnabled) =>
     colorEnabled ? '\x1B[${code}m$text\x1B[0m' : text;
 String _rgb(int r, int g, int b, String text, bool colorEnabled) =>
     colorEnabled ? '\x1B[38;2;$r;$g;${b}m$text\x1B[0m' : text;
+
 abstract class CliTheme {
   final bool colorEnabled;
   CliTheme(this.colorEnabled);
@@ -13,6 +14,7 @@ abstract class CliTheme {
   String muted(String text);
   String bold(String text);
 }
+
 class DefaultTheme extends CliTheme {
   DefaultTheme(super.colorEnabled);
   @override
@@ -21,6 +23,7 @@ class DefaultTheme extends CliTheme {
     final bar = '█' * filled + '░' * (width - filled);
     return _ansi(36, bar, colorEnabled);
   }
+
   @override
   String success(String text) => _ansi(32, text, colorEnabled);
   @override
@@ -34,6 +37,7 @@ class DefaultTheme extends CliTheme {
   @override
   String bold(String text) => _ansi(1, text, colorEnabled);
 }
+
 class RainbowTheme extends CliTheme {
   RainbowTheme(super.colorEnabled);
   static const _colors = [196, 208, 220, 46, 51, 21, 93, 201];
@@ -48,6 +52,7 @@ class RainbowTheme extends CliTheme {
     }
     return buf.toString();
   }
+
   @override
   String success(String text) => _ansi(92, text, colorEnabled);
   @override
@@ -61,6 +66,7 @@ class RainbowTheme extends CliTheme {
   @override
   String bold(String text) => _ansi(1, text, colorEnabled);
 }
+
 class CatppuccinTheme extends CliTheme {
   CatppuccinTheme(super.colorEnabled);
   static const _mauve = (203, 166, 247);
@@ -79,37 +85,44 @@ class CatppuccinTheme extends CliTheme {
     final emptyPart = _rgb(or_, og, ob, '░' * (width - filled), colorEnabled);
     return '$filledPart$emptyPart';
   }
+
   @override
   String success(String text) {
     final (r, g, b) = _green;
     return _rgb(r, g, b, text, colorEnabled);
   }
+
   @override
   String error(String text) {
     final (r, g, b) = _red;
     return _rgb(r, g, b, text, colorEnabled);
   }
+
   @override
   String warn(String text) {
     final (r, g, b) = _yellow;
     return _rgb(r, g, b, text, colorEnabled);
   }
+
   @override
   String info(String text) {
     final (r, g, b) = _sky;
     return _rgb(r, g, b, text, colorEnabled);
   }
+
   @override
   String muted(String text) {
     final (r, g, b) = _overlay;
     return _rgb(r, g, b, text, colorEnabled);
   }
+
   @override
   String bold(String text) {
     final (r, g, b) = _text;
     return colorEnabled ? '\x1B[1m${_rgb(r, g, b, text, true)}' : text;
   }
 }
+
 CliTheme themeByName(String name, {required bool colorEnabled}) {
   switch (name.toLowerCase()) {
     case 'rainbow':

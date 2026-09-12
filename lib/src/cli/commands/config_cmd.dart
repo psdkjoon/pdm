@@ -1,8 +1,11 @@
 import 'dart:io';
+
 import 'package:pdata/pdata.dart';
+
 import '../../config.dart';
 import '../context.dart';
 import '../parser.dart';
+
 Future<int> runConfigCmd(CliContext ctx, ParsedArgs args) async {
   if (args.positionals.isEmpty || args.positionals.first != 'dump') {
     stderr.writeln(

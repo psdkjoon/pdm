@@ -1,6 +1,7 @@
 int? parseByteSize(String? raw) {
   if (raw == null) return null;
-  final match = RegExp(r'^(\d+(?:\.\d+)?)\s*([KMGkmg]?)$').firstMatch(raw.trim());
+  final match =
+      RegExp(r'^(\d+(?:\.\d+)?)\s*([KMGkmg]?)$').firstMatch(raw.trim());
   if (match == null) return int.tryParse(raw);
   final value = double.parse(match.group(1)!);
   final unit = match.group(2)!.toUpperCase();
@@ -12,11 +13,11 @@ int? parseByteSize(String? raw) {
   };
   return (value * multiplier).round();
 }
+
 Duration? parseDurationSpec(String? raw) {
   if (raw == null) return null;
-  final match = RegExp(
-    r'^(\d+(?:\.\d+)?)\s*(ms|s|m|h|d)$',
-  ).firstMatch(raw.trim().toLowerCase());
+  final match = RegExp(r'^(\d+(?:\.\d+)?)\s*(ms|s|m|h|d)$')
+      .firstMatch(raw.trim().toLowerCase());
   if (match == null) return null;
   final value = double.parse(match.group(1)!);
   final unit = match.group(2)!;

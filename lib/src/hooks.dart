@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+
 Map<String, String> builtinOnCompleteCommands() {
   if (Platform.isWindows) {
     return {
@@ -27,12 +28,14 @@ Map<String, String> builtinOnCompleteCommands() {
     'lock': 'loginctl lock-session',
   };
 }
+
 String resolveOnCompleteCommand(String spec, Map<String, String> aliases) {
   if (aliases.containsKey(spec)) return aliases[spec]!;
   final builtins = builtinOnCompleteCommands();
   if (builtins.containsKey(spec)) return builtins[spec]!;
   return spec;
 }
+
 String _fillTemplate(String command, Map<String, String> vars) {
   var result = command;
   for (final entry in vars.entries) {
@@ -40,6 +43,7 @@ String _fillTemplate(String command, Map<String, String> vars) {
   }
   return result;
 }
+
 Future<void> runOnComplete(
   String spec,
   Map<String, String> aliases, {
@@ -63,6 +67,7 @@ Future<void> runOnComplete(
     }
   } catch (_) {}
 }
+
 Future<void> sendNotification(String title, String body) async {
   try {
     if (Platform.isWindows) {

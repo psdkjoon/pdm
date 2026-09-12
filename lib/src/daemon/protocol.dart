@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 class DaemonRequest {
   final String command;
   final Map<String, dynamic> args;
@@ -12,19 +13,26 @@ class DaemonRequest {
     );
   }
 }
+
 class DaemonResponse {
   final bool ok;
   final dynamic data;
   final String? error;
-  DaemonResponse.ok([this.data]) : ok = true, error = null;
-  DaemonResponse.err(this.error) : ok = false, data = null;
-  String encode() => jsonEncode({'ok': ok, 'data': data, 'error': error}) + '\n';
+  DaemonResponse.ok([this.data])
+      : ok = true,
+        error = null;
+  DaemonResponse.err(this.error)
+      : ok = false,
+        data = null;
+  String encode() =>
+      jsonEncode({'ok': ok, 'data': data, 'error': error}) + '\n';
   factory DaemonResponse.decode(String line) {
     final j = jsonDecode(line) as Map<String, dynamic>;
     if (j['ok'] == true) return DaemonResponse.ok(j['data']);
     return DaemonResponse.err(j['error'] as String?);
   }
 }
+
 class DaemonEvent {
   final Map<String, dynamic> task;
   DaemonEvent(this.task);
@@ -37,6 +45,7 @@ class DaemonEvent {
       return false;
     }
   }
+
   factory DaemonEvent.decode(String line) {
     final j = jsonDecode(line) as Map<String, dynamic>;
     return DaemonEvent((j['task'] as Map).cast<String, dynamic>());

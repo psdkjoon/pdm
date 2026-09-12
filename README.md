@@ -1,26 +1,46 @@
 # pdm
+### psdk download manager
 
-psdk download manager — library and CLI. Works on Linux and Windows.
-
-Segmented, resumable, multi-connection downloads. Runs in the background
-by default via a lightweight daemon, or in the foreground with a live
-progress bar. Config file support (YAML/TOML/JSON), cookies, checksums,
-proxies, speed limiting, scheduling, on-complete hooks, regex-based
-per-site rules, and themeable output.
+config-able 
 
 ## Install
 
-```bash
-dart pub global activate pdm
-```
-
-Or grab a self-contained installer (no internet needed at install time)
-from the [releases page](https://github.com/psdkjoon/pdm/releases/latest):
+grab a self-contained installer from the [releases page](https://github.com/psdkjoon/pdm/releases/latest),
+verify it against the published `SHA256SUMS`, and run it:
 
 - `pdm-linux-x64`
 - `pdm-windows-x64.exe`
 
-Each installer embeds both `pdm` and its background daemon `pdmd`.
+Each installer embeds both `pdm` and its background daemon `pdmd`. On
+Linux it installs to `/usr/bin` by default, so you'll usually need:
+
+```bash
+sudo ./pdm-linux-x64
+```
+
+If you'd rather not use `sudo`, install to your user directory instead
+(make sure `~/.local/bin` is on your `PATH`):
+
+```bash
+./pdm-linux-x64 --user
+```
+
+On Windows, run `pdm-windows-x64.exe`; it installs under
+`%LOCALAPPDATA%\Programs\pdm` and adds itself to your user `PATH`.
+
+## Uninstall
+
+To remove pdm later:
+
+```bash
+sudo ./pdm-linux-x64 uninstall   # or: ./pdm-linux-x64 uninstall --user
+```
+
+Set up tab completion (installs into the system completion directory:
+
+```bash
+pdm completion bash   # or: pdm completion zsh
+```
 
 ## Usage
 
@@ -39,7 +59,7 @@ pdm remove <id> [--delete-file]
 pdm watch <id>
 pdm daemon start|stop|status|enable|disable
 pdm history [--limit <n>] [--clear]
-pdm completion bash|zsh
+pdm completion bash|zsh [--user] [--print]
 pdm config dump [--format yaml|toml|json] [--output <path>]
 pdm help [<command>]
 ```
@@ -49,11 +69,11 @@ they survive closing the terminal. Pass `-f`/`--foreground` to `add` to
 block in the current process with a live progress bar instead.
 
 `pdm daemon enable` registers the daemon to start automatically: a
-systemd user service on Linux, a logon scheduled task on Windows, or a
-launchd agent on macOS. `pdm daemon disable` removes it.
+systemd user service on Linux or a logon scheduled task on Windows,
+`pdm daemon disable` removes it.
 
-Run `pdm help <command>` for the full flag list of any command. Every
-flag has both a long and a short form.
+Run `pdm help <command>` for the full flag list of any command.
+Each flag has both a long and a short form.
 
 ## Scheduling
 
@@ -62,7 +82,7 @@ flag has both a long and a short form.
 - `--every <duration>` — after each successful run, re-queue the same
   download again after the given interval (`30m`, `6h`, `1d`).
 - `--on-startup` — hold the task until the next time the daemon starts,
-  regardless of wall-clock time.
+  regardless of time.
 
 These can be combined, e.g. `--on-startup --every 1d` runs once at the
 next daemon start and then daily after that.
@@ -137,5 +157,5 @@ final task = manager.add(
 );
 ```
 
-See `CLAUDE.md` / `AGENT.md` for architecture notes if you're contributing.
+See `lib/pdm.dart` for the full public library surface.
 

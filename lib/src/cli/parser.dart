@@ -1,26 +1,34 @@
 import 'flags.dart';
 import '../util.dart' show parseDurationSpec;
 export '../util.dart' show parseByteSize, parseDurationSpec;
+
 class ParsedArgs {
   final List<String> positionals;
   final Map<String, dynamic> values;
   ParsedArgs(this.positionals, this.values);
   String? str(String long) => values[long] as String?;
   bool flag(String long) => values[long] as bool? ?? false;
-  List<String> multi(String long) => (values[long] as List?)?.cast<String>() ?? const [];
+  List<String> multi(String long) =>
+      (values[long] as List?)?.cast<String>() ?? const [];
   int? intVal(String long) {
     final v = values[long];
     if (v == null) return null;
     return int.tryParse(v as String);
   }
 }
+
 class FlagParseException implements Exception {
   final String message;
   FlagParseException(this.message);
   @override
   String toString() => message;
 }
-ParsedArgs parseArgs(List<String> args, List<FlagDef> extraFlags, List<FlagDef> globals) {
+
+ParsedArgs parseArgs(
+  List<String> args,
+  List<FlagDef> extraFlags,
+  List<FlagDef> globals,
+) {
   final all = [...globals, ...extraFlags];
   final byLong = {for (final f in all) f.long: f};
   final byShort = {for (final f in all) f.short: f};
@@ -70,23 +78,28 @@ ParsedArgs parseArgs(List<String> args, List<FlagDef> extraFlags, List<FlagDef> 
   }
   return ParsedArgs(positionals, values);
 }
+
 String _nextValue(List<String> args, int i, String flagName) {
   if (i + 1 >= args.length) {
     throw FlagParseException('Flag --$flagName expects a value');
   }
   return args[i + 1];
 }
+
 (String, String)? parseChecksumSpec(String? raw) {
   if (raw == null) return null;
   final idx = raw.indexOf(':');
-  if (idx == -1) throw FlagParseException('--checksum expects "algo:hex", e.g. sha256:abcd');
+  if (idx == -1)
+    throw FlagParseException('--checksum expects "algo:hex", e.g. sha256:abcd');
   return (raw.substring(0, idx), raw.substring(idx + 1));
 }
+
 MapEntry<String, String> parseHeaderSpec(String raw) {
   final idx = raw.indexOf(':');
   if (idx == -1) throw FlagParseException('--header expects "Key: Value"');
   return MapEntry(raw.substring(0, idx).trim(), raw.substring(idx + 1).trim());
 }
+
 DateTime parseScheduleAt(String raw, DateTime now) {
   final trimmed = raw.trim();
   if (trimmed.startsWith('+')) {

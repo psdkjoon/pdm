@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
+
 import 'download_task.dart';
 import 'history.dart';
 import 'hooks.dart';
 import 'models.dart';
 import 'store.dart';
+
 class DownloadManager {
   final TaskStore store;
   final int maxConcurrentTasks;
@@ -30,11 +32,11 @@ class DownloadManager {
     this.notifications = false,
     int? globalSpeedLimitBytesPerSec,
     HistoryLog? history,
-  }) : store = store ?? TaskStore(),
-       history = history ?? HistoryLog(),
-       _globalLimiter = globalSpeedLimitBytesPerSec != null
-           ? SpeedLimiter(globalSpeedLimitBytesPerSec)
-           : null {
+  })  : store = store ?? TaskStore(),
+        history = history ?? HistoryLog(),
+        _globalLimiter = globalSpeedLimitBytesPerSec != null
+            ? SpeedLimiter(globalSpeedLimitBytesPerSec)
+            : null {
     for (final record in this.store.load()) {
       if (record.status == DownloadStatus.downloading ||
           record.status == DownloadStatus.probing) {
@@ -49,11 +51,15 @@ class DownloadManager {
       _records[record.id] = record;
     }
     for (final record in _records.values) {
-      if (record.status == DownloadStatus.queued && !_queue.contains(record.id)) {
+      if (record.status == DownloadStatus.queued &&
+          !_queue.contains(record.id)) {
         _queue.add(record.id);
       }
     }
-    _scheduleTimer = Timer.periodic(const Duration(seconds: 1), _checkSchedules);
+    _scheduleTimer = Timer.periodic(
+      const Duration(seconds: 1),
+      _checkSchedules,
+    );
     _pump();
   }
   Stream<TaskRecord> get events => _controller.stream;
@@ -65,12 +71,14 @@ class DownloadManager {
     _controller.add(record);
     _persist();
   }
+
   DownloadRule? _matchRule(String url) {
     for (final rule in rules) {
       if (rule.matches(url)) return rule;
     }
     return null;
   }
+
   TaskRecord? _findDuplicate(String url, String savePath) {
     for (final record in _records.values) {
       if (record.status == DownloadStatus.completed ||
@@ -81,6 +89,7 @@ class DownloadManager {
     }
     return null;
   }
+
   TaskRecord add(
     String url, {
     String? savePath,
@@ -118,6 +127,7 @@ class DownloadManager {
     if (!hasSchedule && !startPaused) _enqueue(id);
     return record;
   }
+
   String _inferSavePath(String url, {String? ruleDir}) {
     final uri = Uri.parse(url);
     final segments = uri.pathSegments;
@@ -129,11 +139,13 @@ class DownloadManager {
     final sep = dir.endsWith('/') ? '' : '/';
     return '$dir$sep$name';
   }
+
   String _generateId() {
     final rand = Random();
     const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
     return List.generate(8, (_) => chars[rand.nextInt(chars.length)]).join();
   }
+
   void _checkSchedules(Timer timer) {
     final now = DateTime.now();
     for (final record in _records.values.toList()) {
@@ -148,6 +160,7 @@ class DownloadManager {
       }
     }
   }
+
   void _rescheduleIfRecurring(TaskRecord record) {
     final every = record.schedule?.every;
     if (every == null) return;
@@ -158,10 +171,12 @@ class DownloadManager {
     record.error = null;
     _emit(record);
   }
+
   void _enqueue(String id) {
     if (!_queue.contains(id)) _queue.add(id);
     _pump();
   }
+
   String? _nextQueuedId() {
     String? best;
     var bestPriority = -1 << 30;
@@ -176,6 +191,7 @@ class DownloadManager {
     }
     return best;
   }
+
   void _pump() {
     while (_active.length < maxConcurrentTasks && _queue.isNotEmpty) {
       final id = _nextQueuedId();
@@ -187,6 +203,7 @@ class DownloadManager {
       _startTask(record);
     }
   }
+
   void _startTask(TaskRecord record) {
     final task = DownloadTask(record);
     _startedAt[record.id] = DateTime.now();
@@ -201,6 +218,7 @@ class DownloadManager {
       _pump();
     });
   }
+
   void _handleTaskFinished(TaskRecord record, DateTime startedAt) {
     final finished = record.status == DownloadStatus.completed ||
         record.status == DownloadStatus.failed;
@@ -244,6 +262,7 @@ class DownloadManager {
       _rescheduleIfRecurring(record);
     }
   }
+
   Future<void> start(String id) async {
     final record = _records[id];
     if (record == null) throw ArgumentError('Unknown task id "$id"');
@@ -252,6 +271,7 @@ class DownloadManager {
     _emit(record);
     _enqueue(id);
   }
+
   Future<void> pause(String id) async {
     final task = _active[id];
     if (task != null) {
@@ -267,6 +287,7 @@ class DownloadManager {
       _emit(record);
     }
   }
+
   Future<void> cancel(String id) async {
     final task = _active[id];
     if (task != null) {
@@ -280,6 +301,7 @@ class DownloadManager {
       _emit(record);
     }
   }
+
   Future<void> remove(String id, {bool deleteFile = false}) async {
     if (_active.containsKey(id)) {
       await cancel(id);
@@ -299,6 +321,7 @@ class DownloadManager {
       _persist();
     }
   }
+
   void dispose() {
     _scheduleTimer?.cancel();
     _controller.close();

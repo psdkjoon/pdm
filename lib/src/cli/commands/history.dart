@@ -1,10 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
+
 import '../../history.dart';
 import '../../models.dart';
 import '../context.dart';
 import '../parser.dart';
 import '../render.dart';
+
 Future<int> runHistory(CliContext ctx, ParsedArgs args) async {
   final log = HistoryLog();
   if (args.flag('clear')) {
@@ -33,7 +35,7 @@ Future<int> runHistory(CliContext ctx, ParsedArgs args) async {
     ),
   );
   for (final e in entries) {
-    final name = e.savePath.contains('/') ? e.savePath.split('/').last : e.savePath;
+    final name = basename(e.savePath);
     final speed = e.averageBytesPerSec > 0
         ? formatSpeed(e.averageBytesPerSec.round())
         : '-';
@@ -45,15 +47,15 @@ Future<int> runHistory(CliContext ctx, ParsedArgs args) async {
       '${_formatTime(e.finishedAt).padRight(17)}  $statusColored  ${formatBytes(e.totalBytes).padRight(9)}  ${speed.padRight(11)}  $name',
     );
   }
-  final avgSpeed = totalMs > 0
-      ? formatSpeed((totalBytes / (totalMs / 1000)).round())
-      : '-';
+  final avgSpeed =
+      totalMs > 0 ? formatSpeed((totalBytes / (totalMs / 1000)).round()) : '-';
   stdout.writeln();
   stdout.writeln(
     'Total: ${formatBytes(totalBytes)} across ${entries.length} task(s), avg speed $avgSpeed',
   );
   return 0;
 }
+
 String _formatTime(DateTime dt) {
   final l = dt.toLocal();
   String two(int n) => n.toString().padLeft(2, '0');

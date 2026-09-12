@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:io';
+
 import '../../config.dart';
 import '../../download_manager.dart';
 import '../../models.dart';
 import '../context.dart';
 import '../parser.dart';
 import '../render.dart';
+
 Future<int> runAdd(CliContext ctx, ParsedArgs args) async {
   final headers = <String, String>{};
   for (final h in args.multi('header')) {
@@ -47,7 +49,14 @@ Future<int> runAdd(CliContext ctx, ParsedArgs args) async {
   final foreground = args.flag('foreground');
   final filePath = args.str('file');
   if (filePath != null) {
-    return _runBatch(ctx, filePath, options, schedule, allowDuplicate, startPaused);
+    return _runBatch(
+      ctx,
+      filePath,
+      options,
+      schedule,
+      allowDuplicate,
+      startPaused,
+    );
   }
   if (args.positionals.isEmpty) {
     stderr.writeln('Usage: pdm add <url> [flags]');
@@ -75,6 +84,7 @@ Future<int> runAdd(CliContext ctx, ParsedArgs args) async {
     allowDuplicate,
   );
 }
+
 Schedule? _buildSchedule(ParsedArgs args) {
   final atRaw = args.str('at');
   final everyRaw = args.str('every');
@@ -90,6 +100,7 @@ Schedule? _buildSchedule(ParsedArgs args) {
   final at = atRaw != null ? parseScheduleAt(atRaw, DateTime.now()) : null;
   return Schedule(at: at, every: every, onStartup: onStartup);
 }
+
 Future<int> _runForeground(
   CliContext ctx,
   String url,
@@ -123,7 +134,9 @@ Future<int> _runForeground(
     return 1;
   }
   if (record.status == DownloadStatus.scheduled) {
-    ctx.log('Scheduled ${record.id} for ${record.schedule?.at ?? "next daemon startup"}.');
+    ctx.log(
+      'Scheduled ${record.id} for ${record.schedule?.at ?? "next daemon startup"}.',
+    );
     manager.dispose();
     return 0;
   }
@@ -137,35 +150,51 @@ Future<int> _runForeground(
   var lastBytes = 0;
   var lastTime = DateTime.now();
   final completer = Completer<int>();
-  manager.events.listen((r) {
-    if (r.id != record.id) return;
-    final now = DateTime.now();
-    final elapsed = now.difference(lastTime).inMilliseconds;
-    int? speed;
-    if (elapsed > 200) {
-      speed = ((r.downloadedBytes - lastBytes) / (elapsed / 1000)).round();
-      lastBytes = r.downloadedBytes;
-      lastTime = now;
-    }
-    if (!ctx.quiet) printProgressLine(r, ctx.theme, bytesPerSecond: speed);
-    if (r.status == DownloadStatus.completed) {
-      if (!ctx.quiet) stdout.writeln();
-      ctx.log(ctx.theme.success('Completed: ${r.savePath}'));
-      completer.complete(0);
-    } else if (r.status == DownloadStatus.failed) {
-      if (!ctx.quiet) stdout.writeln();
-      stderr.writeln(ctx.theme.error('Failed: ${r.error ?? "unknown error"}'));
-      completer.complete(1);
-    } else if (r.status == DownloadStatus.canceled) {
-      if (!ctx.quiet) stdout.writeln();
-      ctx.log(ctx.theme.warn('Canceled'));
-      completer.complete(1);
-    }
-  });
+  late StreamSubscription<TaskRecord> eventSub;
+  eventSub = manager.events.listen(
+    (r) {
+      if (r.id != record.id) return;
+      final now = DateTime.now();
+      final elapsed = now.difference(lastTime).inMilliseconds;
+      int? speed;
+      if (elapsed > 200) {
+        speed = ((r.downloadedBytes - lastBytes) / (elapsed / 1000)).round();
+        lastBytes = r.downloadedBytes;
+        lastTime = now;
+      }
+      if (!ctx.quiet) printProgressLine(r, ctx.theme, bytesPerSecond: speed);
+      if (r.status == DownloadStatus.completed) {
+        if (!ctx.quiet) stdout.writeln();
+        ctx.log(ctx.theme.success('Completed: ${r.savePath}'));
+        if (!completer.isCompleted) completer.complete(0);
+      } else if (r.status == DownloadStatus.failed) {
+        if (!ctx.quiet) stdout.writeln();
+        stderr.writeln(
+          ctx.theme.error('Failed: ${r.error ?? "unknown error"}'),
+        );
+        if (!completer.isCompleted) completer.complete(1);
+      } else if (r.status == DownloadStatus.canceled) {
+        if (!ctx.quiet) stdout.writeln();
+        ctx.log(ctx.theme.warn('Canceled'));
+        if (!completer.isCompleted) completer.complete(1);
+      }
+    },
+    onDone: () {
+      if (!completer.isCompleted) completer.complete(1);
+    },
+    onError: (Object e) {
+      if (!completer.isCompleted) {
+        stderr.writeln(ctx.theme.error('Error: $e'));
+        completer.complete(1);
+      }
+    },
+  );
   final exitCode = await completer.future;
+  await eventSub.cancel();
   manager.dispose();
   return exitCode;
 }
+
 Future<int> _runBackground(
   CliContext ctx,
   String url,
@@ -204,6 +233,7 @@ Future<int> _runBackground(
   }
   return 0;
 }
+
 Future<int> _runBatch(
   CliContext ctx,
   String filePath,

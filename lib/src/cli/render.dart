@@ -1,6 +1,8 @@
 import 'dart:io';
+
 import '../models.dart';
 import 'theme.dart';
+
 String formatBytes(int bytes) {
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
   double size = bytes.toDouble();
@@ -11,12 +13,14 @@ String formatBytes(int bytes) {
   }
   return '${size.toStringAsFixed(unit == 0 ? 0 : 1)} ${units[unit]}';
 }
+
 String formatSpeed(int bytesPerSecond) => '${formatBytes(bytesPerSecond)}/s';
 String formatDuration(Duration d) {
   if (d.inHours > 0) return '${d.inHours}h ${d.inMinutes % 60}m';
   if (d.inMinutes > 0) return '${d.inMinutes}m ${d.inSeconds % 60}s';
   return '${d.inSeconds}s';
 }
+
 void printProgressLine(
   TaskRecord record,
   CliTheme theme, {
@@ -30,6 +34,7 @@ void printProgressLine(
   final speed = bytesPerSecond != null ? ' ${formatSpeed(bytesPerSecond)}' : '';
   stdout.write('\r$bar $pct% ($downloaded/$total)$speed   ');
 }
+
 void printTaskTable(List<TaskRecord> records, CliTheme theme) {
   if (records.isEmpty) {
     stdout.writeln(theme.muted('No tasks.'));
@@ -43,8 +48,7 @@ void printTaskTable(List<TaskRecord> records, CliTheme theme) {
   );
   for (final r in records) {
     final pct = '${(r.progress * 100).toStringAsFixed(0)}%';
-    final name =
-        r.savePath.contains('/') ? r.savePath.split('/').last : r.savePath;
+    final name = basename(r.savePath);
     final paddedStatus = r.status.name.padRight(statusW);
     final statusColored = _colorStatus(r.status, theme, paddedStatus);
     stdout.writeln(
@@ -52,6 +56,12 @@ void printTaskTable(List<TaskRecord> records, CliTheme theme) {
     );
   }
 }
+
+String basename(String path) {
+  final normalized = path.replaceAll('\\', '/');
+  return normalized.contains('/') ? normalized.split('/').last : normalized;
+}
+
 String _colorStatus(DownloadStatus status, CliTheme theme, String text) {
   switch (status) {
     case DownloadStatus.completed:

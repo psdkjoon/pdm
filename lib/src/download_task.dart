@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+
 import 'cookies.dart';
 import 'diskspace.dart';
 import 'hashing.dart';
 import 'models.dart';
+
 class DownloadTask {
   final TaskRecord record;
   final HttpClient client;
@@ -40,11 +42,11 @@ class DownloadTask {
         final proxyPass = record.options.proxyPass ?? '';
         this.client.authenticateProxy = (host, port, scheme, realm) async {
           this.client.addProxyCredentials(
-            host,
-            port,
-            realm ?? '',
-            HttpClientBasicCredentials(proxyUser, proxyPass),
-          );
+                host,
+                port,
+                realm ?? '',
+                HttpClientBasicCredentials(proxyUser, proxyPass),
+              );
           return true;
         };
       }
@@ -76,6 +78,7 @@ class DownloadTask {
       req.headers.set(HttpHeaders.authorizationHeader, 'Basic $creds');
     }
   }
+
   Future<void> probe() async {
     record.status = DownloadStatus.probing;
     onStateChanged?.call();
@@ -107,6 +110,7 @@ class DownloadTask {
       record.supportsRange = false;
     }
   }
+
   void _buildSegmentsIfNeeded() {
     if (record.segments.isNotEmpty) return;
     if (record.supportsRange && record.totalBytes != null) {
@@ -128,6 +132,7 @@ class DownloadTask {
       ];
     }
   }
+
   Future<void> run({SpeedLimiter? globalLimiter}) async {
     _pauseRequested = false;
     _cancelRequested = false;
@@ -149,7 +154,8 @@ class DownloadTask {
         final free = await availableDiskSpace(destFile.parent.path);
         if (free != null && free < needed) {
           record.status = DownloadStatus.failed;
-          record.error = 'Not enough disk space: need $needed bytes, have $free';
+          record.error =
+              'Not enough disk space: need $needed bytes, have $free';
           onStateChanged?.call();
           _done!.complete();
           return;
@@ -157,9 +163,7 @@ class DownloadTask {
       }
     }
     destFile.parent.createSync(recursive: true);
-    _raf = destFile.openSync(
-      mode: isResume ? FileMode.append : FileMode.write,
-    );
+    _raf = destFile.openSync(mode: isResume ? FileMode.append : FileMode.write);
     if (!isResume && record.totalBytes != null) {
       _raf!.setPositionSync(record.totalBytes! - 1);
       _raf!.writeByteSync(0);
@@ -190,6 +194,7 @@ class DownloadTask {
     onStateChanged?.call();
     _done!.complete();
   }
+
   Future<void> _verifyIfRequested() async {
     if (record.options.checksumAlgo == null ||
         record.options.checksumValue == null) {
@@ -211,6 +216,7 @@ class DownloadTask {
       record.error = 'Checksum verification error: $e';
     }
   }
+
   Future<void> _runSegmentWithRetries(
     Segment seg,
     SpeedLimiter? limiter,
@@ -230,6 +236,7 @@ class DownloadTask {
       await Future<void>.delayed(Duration(milliseconds: delayMs));
     }
   }
+
   Future<bool> _runSegment(
     Segment seg,
     SpeedLimiter? limiter,
@@ -254,13 +261,18 @@ class DownloadTask {
       sub = resp.listen(
         (chunk) async {
           if (_cancelRequested || _pauseRequested) {
-            await sub.cancel();
             if (!completer.isCompleted) completer.complete(true);
+            await sub.cancel();
             return;
           }
           sub.pause();
           if (limiter != null) await limiter.throttle(chunk.length);
           if (globalLimiter != null) await globalLimiter.throttle(chunk.length);
+          if (_cancelRequested || _pauseRequested || _raf == null) {
+            if (!completer.isCompleted) completer.complete(true);
+            await sub.cancel();
+            return;
+          }
           _raf!.setPositionSync(writePos);
           _raf!.writeFromSync(chunk);
           writePos += chunk.length;
@@ -286,17 +298,21 @@ class DownloadTask {
       return false;
     }
   }
+
   Future<void> pause() async {
     _pauseRequested = true;
-    for (final s in _subs) {
+    final subs = List<StreamSubscription<List<int>>>.from(_subs);
+    for (final s in subs) {
       await s.cancel();
     }
     _subs.clear();
     await _done?.future;
   }
+
   Future<void> cancel() async {
     _cancelRequested = true;
-    for (final s in _subs) {
+    final subs = List<StreamSubscription<List<int>>>.from(_subs);
+    for (final s in subs) {
       await s.cancel();
     }
     _subs.clear();
@@ -307,6 +323,7 @@ class DownloadTask {
     } catch (_) {}
   }
 }
+
 class SpeedLimiter {
   final int bytesPerSecond;
   int _budget;

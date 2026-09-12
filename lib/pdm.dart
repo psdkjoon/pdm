@@ -1,4 +1,5 @@
 library pdm;
+
 export 'src/config.dart'
     show
         PdmConfig,
@@ -9,11 +10,12 @@ export 'src/config.dart'
         defaultStateDir,
         homeDir,
         expandHome;
-export 'src/cookies.dart' show resolveCookieHeader, parseCookieFile, parseInlineCookie;
+export 'src/cookies.dart'
+    show resolveCookieHeader, parseCookieFile, parseInlineCookie;
 export 'src/diskspace.dart' show availableDiskSpace;
 export 'src/download_manager.dart' show DownloadManager;
 export 'src/download_task.dart' show DownloadTask, SpeedLimiter;
-export 'src/hashing.dart' show hashFile, verifyFileChecksum;
+export 'src/hashing.dart' show hashFile, sha256Hex, verifyFileChecksum;
 export 'src/history.dart' show HistoryEntry, HistoryLog;
 export 'src/hooks.dart'
     show

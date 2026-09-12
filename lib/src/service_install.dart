@@ -1,11 +1,14 @@
 import 'dart:io';
+
 import 'config.dart' show homeDir;
 import 'daemon/daemon_client.dart' show resolvePdmdCommand;
+
 class ServiceInstallResult {
   final bool success;
   final String message;
   const ServiceInstallResult(this.success, this.message);
 }
+
 String _windowsTaskName() => 'pdm daemon';
 String _systemdUnitPath() => '${homeDir()}/.config/systemd/user/pdmd.service';
 String _launchdPlistPath() =>
@@ -22,11 +25,9 @@ String _systemdUnit(String executable, List<String> args) {
       '[Install]\n'
       'WantedBy=default.target\n';
 }
+
 String _launchdPlist(String executable, List<String> args) {
-  final items = [
-    executable,
-    ...args,
-  ].map((a) => '<string>$a</string>').join();
+  final items = [executable, ...args].map((a) => '<string>$a</string>').join();
   return '<?xml version="1.0" encoding="UTF-8"?>\n'
       '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n'
       '<plist version="1.0">\n'
@@ -38,6 +39,7 @@ String _launchdPlist(String executable, List<String> args) {
       '</dict>\n'
       '</plist>\n';
 }
+
 Future<ServiceInstallResult> installDaemonService() async {
   final (executable, args) = resolvePdmdCommand();
   if (Platform.isWindows) {
@@ -90,6 +92,7 @@ Future<ServiceInstallResult> installDaemonService() async {
   }
   return ServiceInstallResult(true, 'Installed and started $unitPath');
 }
+
 Future<ServiceInstallResult> uninstallDaemonService() async {
   if (Platform.isWindows) {
     final result = await Process.run('schtasks', [
@@ -114,7 +117,12 @@ Future<ServiceInstallResult> uninstallDaemonService() async {
     return ServiceInstallResult(true, 'Unloaded and removed $plistPath');
   }
   final unitPath = _systemdUnitPath();
-  await Process.run('systemctl', ['--user', 'disable', '--now', 'pdmd.service']);
+  await Process.run('systemctl', [
+    '--user',
+    'disable',
+    '--now',
+    'pdmd.service',
+  ]);
   final file = File(unitPath);
   if (file.existsSync()) file.deleteSync();
   await Process.run('systemctl', ['--user', 'daemon-reload']);

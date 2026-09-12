@@ -1,6 +1,9 @@
 import 'dart:io';
+
 import 'package:pdata/pdata.dart';
+
 import 'models.dart' show DownloadRule;
+
 class PdmConfig {
   final int connections;
   final int maxConcurrentTasks;
@@ -54,73 +57,90 @@ class PdmConfig {
   });
   static const PdmConfig defaults = PdmConfig();
   Map<String, dynamic> toJson() => {
-    'connections': connections,
-    'maxConcurrentTasks': maxConcurrentTasks,
-    'retries': retries,
-    'retryDelay': retryDelayMs,
-    'retryBackoff': retryBackoff,
-    'timeout': timeoutSeconds,
-    'speedLimit': speedLimitBytesPerSec,
-    'globalSpeedLimit': globalSpeedLimitBytesPerSec,
-    'maxRedirects': maxRedirects,
-    'insecure': insecure,
-    'downloadDir': downloadDir,
-    'theme': theme,
-    'color': color,
-    'daemonHost': daemonHost,
-    'daemonPort': daemonPort,
-    'socketPath': socketPath,
-    'proxy': proxy,
-    'proxyUser': proxyUser,
-    'proxyPass': proxyPass,
-    'proxyBypass': proxyBypass,
-    'onCompleteAliases': onCompleteAliases,
-    'rules': rules.map((r) => r.toJson()).toList(),
-    'notifications': notifications,
-    'checkDiskSpace': checkDiskSpace,
-  };
+        'connections': connections,
+        'maxConcurrentTasks': maxConcurrentTasks,
+        'retries': retries,
+        'retryDelay': retryDelayMs,
+        'retryBackoff': retryBackoff,
+        'timeout': timeoutSeconds,
+        'speedLimit': speedLimitBytesPerSec,
+        'globalSpeedLimit': globalSpeedLimitBytesPerSec,
+        'maxRedirects': maxRedirects,
+        'insecure': insecure,
+        'downloadDir': downloadDir,
+        'theme': theme,
+        'color': color,
+        'daemonHost': daemonHost,
+        'daemonPort': daemonPort,
+        'socketPath': socketPath,
+        'proxy': proxy,
+        'proxyUser': proxyUser,
+        'proxyPass': proxyPass,
+        'proxyBypass': proxyBypass,
+        'onCompleteAliases': onCompleteAliases,
+        'rules': rules.map((r) => r.toJson()).toList(),
+        'notifications': notifications,
+        'checkDiskSpace': checkDiskSpace,
+      };
   factory PdmConfig.fromMap(Map<String, dynamic> m) => PdmConfig(
-    connections: m.getInt('connections', defaultValue: defaults.connections),
-    maxConcurrentTasks: m.getInt(
-      'maxConcurrentTasks',
-      defaultValue: defaults.maxConcurrentTasks,
-    ),
-    retries: m.getInt('retries', defaultValue: defaults.retries),
-    retryDelayMs: m.getInt('retryDelay', defaultValue: defaults.retryDelayMs),
-    retryBackoff: m.getBool('retryBackoff', defaultValue: defaults.retryBackoff),
-    timeoutSeconds: m.getInt('timeout', defaultValue: defaults.timeoutSeconds),
-    speedLimitBytesPerSec: m['speedLimit'] == null
-        ? null
-        : m.getInt('speedLimit'),
-    globalSpeedLimitBytesPerSec: m['globalSpeedLimit'] == null
-        ? null
-        : m.getInt('globalSpeedLimit'),
-    maxRedirects: m.getInt('maxRedirects', defaultValue: defaults.maxRedirects),
-    insecure: m.getBool('insecure', defaultValue: defaults.insecure),
-    downloadDir: m.getString('downloadDir', defaultValue: defaults.downloadDir),
-    theme: m.getString('theme', defaultValue: defaults.theme),
-    color: m.getBool('color', defaultValue: defaults.color),
-    daemonHost: m.getString('daemonHost', defaultValue: defaults.daemonHost),
-    daemonPort: m.getInt('daemonPort', defaultValue: defaults.daemonPort),
-    socketPath: m.getString('socketPath', defaultValue: defaults.socketPath),
-    proxy: m['proxy'] as String?,
-    proxyUser: m['proxyUser'] as String?,
-    proxyPass: m['proxyPass'] as String?,
-    proxyBypass: _stringList(m['proxyBypass']),
-    onCompleteAliases: _stringMap(m['onCompleteAliases']),
-    rules: _ruleList(m['rules']),
-    notifications: m.getBool('notifications', defaultValue: defaults.notifications),
-    checkDiskSpace: m.getBool('checkDiskSpace', defaultValue: defaults.checkDiskSpace),
-  );
+        connections:
+            m.getInt('connections', defaultValue: defaults.connections),
+        maxConcurrentTasks: m.getInt(
+          'maxConcurrentTasks',
+          defaultValue: defaults.maxConcurrentTasks,
+        ),
+        retries: m.getInt('retries', defaultValue: defaults.retries),
+        retryDelayMs:
+            m.getInt('retryDelay', defaultValue: defaults.retryDelayMs),
+        retryBackoff: m.getBool(
+          'retryBackoff',
+          defaultValue: defaults.retryBackoff,
+        ),
+        timeoutSeconds:
+            m.getInt('timeout', defaultValue: defaults.timeoutSeconds),
+        speedLimitBytesPerSec:
+            m['speedLimit'] == null ? null : m.getInt('speedLimit'),
+        globalSpeedLimitBytesPerSec:
+            m['globalSpeedLimit'] == null ? null : m.getInt('globalSpeedLimit'),
+        maxRedirects:
+            m.getInt('maxRedirects', defaultValue: defaults.maxRedirects),
+        insecure: m.getBool('insecure', defaultValue: defaults.insecure),
+        downloadDir:
+            m.getString('downloadDir', defaultValue: defaults.downloadDir),
+        theme: m.getString('theme', defaultValue: defaults.theme),
+        color: m.getBool('color', defaultValue: defaults.color),
+        daemonHost:
+            m.getString('daemonHost', defaultValue: defaults.daemonHost),
+        daemonPort: m.getInt('daemonPort', defaultValue: defaults.daemonPort),
+        socketPath:
+            m.getString('socketPath', defaultValue: defaults.socketPath),
+        proxy: m['proxy'] as String?,
+        proxyUser: m['proxyUser'] as String?,
+        proxyPass: m['proxyPass'] as String?,
+        proxyBypass: _stringList(m['proxyBypass']),
+        onCompleteAliases: _stringMap(m['onCompleteAliases']),
+        rules: _ruleList(m['rules']),
+        notifications: m.getBool(
+          'notifications',
+          defaultValue: defaults.notifications,
+        ),
+        checkDiskSpace: m.getBool(
+          'checkDiskSpace',
+          defaultValue: defaults.checkDiskSpace,
+        ),
+      );
 }
+
 List<String> _stringList(dynamic raw) {
   if (raw is! List) return const [];
   return raw.map((e) => e.toString()).toList();
 }
+
 Map<String, String> _stringMap(dynamic raw) {
   if (raw is! Map) return const {};
   return raw.map((k, v) => MapEntry(k.toString(), v.toString()));
 }
+
 List<DownloadRule> _ruleList(dynamic raw) {
   if (raw is! List) return const [];
   return raw
@@ -128,6 +148,7 @@ List<DownloadRule> _ruleList(dynamic raw) {
       .map((m) => DownloadRule.fromJson(m.cast<String, dynamic>()))
       .toList();
 }
+
 String homeDir() {
   if (Platform.isWindows) {
     final profile = Platform.environment['USERPROFILE'];
@@ -139,11 +160,13 @@ String homeDir() {
   }
   return Platform.environment['HOME'] ?? '.';
 }
+
 String defaultStateDir() {
   final xdg = Platform.environment['XDG_STATE_HOME'];
   if (xdg != null && xdg.isNotEmpty) return '$xdg/pdm';
   return '${homeDir()}/.local/state/pdm';
 }
+
 String defaultConfigPath() {
   final envPath = Platform.environment['PDM_CONFIG_PATH'];
   if (envPath != null && envPath.isNotEmpty) return expandHome(envPath);
@@ -153,10 +176,12 @@ String defaultConfigPath() {
   }
   return '${homeDir()}/.config/pdm/pdm.yaml';
 }
+
 String expandHome(String path) {
   if (!path.startsWith('~')) return path;
   return path.replaceFirst('~', homeDir());
 }
+
 PdataFormat formatFromName(String name) {
   switch (name.toLowerCase()) {
     case 'json':
@@ -170,6 +195,7 @@ PdataFormat formatFromName(String name) {
       throw ArgumentError('Unknown format "$name" (use yaml, toml, or json)');
   }
 }
+
 PdmConfig loadConfig({String? path}) {
   final resolved = expandHome(path ?? defaultConfigPath());
   final file = File(resolved);
@@ -179,21 +205,22 @@ PdmConfig loadConfig({String? path}) {
   if (raw is! Map<String, dynamic>) return PdmConfig.defaults;
   return PdmConfig.fromMap(raw);
 }
+
 String dumpDefaultConfig({PdataFormat format = PdataFormat.yaml}) {
   return pdataEncode(PdmConfig.defaults.toJson(), format, pretty: true);
 }
+
 void writeDefaultConfig(
   String outputPath, {
   PdataFormat? format,
   bool force = false,
 }) {
   final resolved = expandHome(outputPath);
-  final resolvedFormat = format ?? pdataFormatFromExtension(resolved) ?? PdataFormat.yaml;
+  final resolvedFormat =
+      format ?? pdataFormatFromExtension(resolved) ?? PdataFormat.yaml;
   final file = File(resolved);
   if (file.existsSync() && !force) {
-    throw StateError(
-      '$resolved already exists. Use --force to overwrite.',
-    );
+    throw StateError('$resolved already exists. Use --force to overwrite.');
   }
   pdataWriteFile(
     resolved,

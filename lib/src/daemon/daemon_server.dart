@@ -1,19 +1,21 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+
 import '../download_manager.dart';
 import '../models.dart';
 import '../store.dart';
 import 'protocol.dart';
 import 'socket_address.dart';
+
 class DaemonServer {
   final DownloadManager manager;
   final SocketAddress address;
   final List<Socket> _watchers = [];
   ServerSocket? _server;
   DaemonServer({DownloadManager? manager, SocketAddress? address})
-    : manager = manager ?? DownloadManager(),
-      address = address ?? resolveSocketAddress() {
+      : manager = manager ?? DownloadManager(),
+        address = address ?? resolveSocketAddress() {
     this.manager.events.listen(_broadcastEvent);
   }
   Future<void> start() async {
@@ -31,10 +33,12 @@ class DaemonServer {
     }
     _server!.listen(_handleConnection);
   }
+
   Future<void> stop() async {
     await _server?.close();
     manager.dispose();
   }
+
   void _broadcastEvent(TaskRecord record) {
     final line = DaemonEvent(record.toJson()).encode();
     for (final w in List.of(_watchers)) {
@@ -45,6 +49,7 @@ class DaemonServer {
       }
     }
   }
+
   void _handleConnection(Socket socket) {
     socket
         .cast<List<int>>()
@@ -55,6 +60,7 @@ class DaemonServer {
           onDone: () => _watchers.remove(socket),
         );
   }
+
   Future<void> _handleLine(Socket socket, String line) async {
     if (line.trim().isEmpty) return;
     late DaemonRequest req;
@@ -71,6 +77,7 @@ class DaemonServer {
       socket.write(DaemonResponse.err(e.toString()).encode());
     }
   }
+
   Future<DaemonResponse?> _dispatch(Socket socket, DaemonRequest req) async {
     switch (req.command) {
       case 'ping':
@@ -129,6 +136,7 @@ class DaemonServer {
     }
   }
 }
+
 Future<DaemonServer> runDaemon({
   int maxConcurrentTasks = 3,
   TaskStore? store,

@@ -1,6 +1,6 @@
 name: pdm
 description: psdk download manager
-version: 2.0.1
+version: 3.0.0
 homepage: https://github.com/psdkjoon/pdm
 repository: https://github.com/psdkjoon/pdm
 issue_tracker: https://github.com/psdkjoon/pdm/issues

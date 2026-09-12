@@ -1,8 +1,10 @@
 import 'dart:io';
+
 String? parseInlineCookie(String? raw) {
   if (raw == null || raw.trim().isEmpty) return null;
   return raw.trim();
 }
+
 String? parseCookieFile(String path) {
   final file = File(path);
   if (!file.existsSync()) {
@@ -22,6 +24,7 @@ String? parseCookieFile(String path) {
   if (pairs.isEmpty) return null;
   return pairs.join('; ');
 }
+
 String? resolveCookieHeader({String? cookie, String? cookieFile}) {
   if (cookieFile != null && cookieFile.isNotEmpty) {
     return parseCookieFile(cookieFile);

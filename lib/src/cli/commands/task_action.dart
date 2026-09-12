@@ -1,7 +1,9 @@
 import 'dart:io';
+
 import '../../models.dart';
 import '../context.dart';
 import '../parser.dart';
+
 Future<int> runTaskAction(
   CliContext ctx,
   ParsedArgs args,
@@ -31,7 +33,10 @@ Future<int> runTaskAction(
     ids = [args.positionals.first];
   }
   final destructive = action == 'remove' || action == 'cancel';
-  if (destructive && !args.flag('force') && stdin.hasTerminal && ids.isNotEmpty) {
+  if (destructive &&
+      !args.flag('force') &&
+      stdin.hasTerminal &&
+      ids.isNotEmpty) {
     final deleteFile = supportsDeleteFile && args.flag('delete-file');
     final label = deleteFile
         ? '$action (and delete file) ${ids.length} task(s)'
@@ -62,14 +67,17 @@ Future<int> runTaskAction(
   await ctx.client.close();
   return exitCode;
 }
+
 bool _actionApplies(String action, DownloadStatus status) {
   switch (action) {
     case 'pause':
-      return status == DownloadStatus.downloading || status == DownloadStatus.queued;
+      return status == DownloadStatus.downloading ||
+          status == DownloadStatus.queued;
     case 'resume':
       return status == DownloadStatus.paused || status == DownloadStatus.failed;
     case 'cancel':
-      return status != DownloadStatus.completed && status != DownloadStatus.canceled;
+      return status != DownloadStatus.completed &&
+          status != DownloadStatus.canceled;
     case 'remove':
       return true;
     default:

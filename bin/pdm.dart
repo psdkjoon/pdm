@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:pdm/src/cli/commands/add.dart';
 import 'package:pdm/src/cli/commands/completion.dart';
 import 'package:pdm/src/cli/commands/config_cmd.dart';
@@ -12,6 +13,24 @@ import 'package:pdm/src/cli/flags.dart';
 import 'package:pdm/src/cli/help.dart';
 import 'package:pdm/src/cli/parser.dart';
 import 'package:pdm/src/version.dart';
+
+const _knownCommands = {
+  'add',
+  'list',
+  'ls',
+  'pause',
+  'resume',
+  'start',
+  'cancel',
+  'remove',
+  'rm',
+  'watch',
+  'daemon',
+  'config',
+  'history',
+  'completion',
+};
+
 Future<void> main(List<String> argv) async {
   if (argv.isEmpty) {
     stdout.writeln(renderGlobalHelp());
@@ -31,6 +50,14 @@ Future<void> main(List<String> argv) async {
     stdout.writeln(pdmVersion());
     exit(0);
   }
+  if (rest.contains('-h') || rest.contains('--help')) {
+    stdout.writeln(renderCommandHelp(command));
+    exit(0);
+  }
+  if (!_knownCommands.contains(command)) {
+    stderr.writeln(renderCommandHelp(command));
+    exit(1);
+  }
   final extraFlags = commandFlags[command] ?? const [];
   ParsedArgs args;
   try {
@@ -38,10 +65,6 @@ Future<void> main(List<String> argv) async {
   } on FlagParseException catch (e) {
     stderr.writeln(e.message);
     exit(1);
-  }
-  if (args.flag('help')) {
-    stdout.writeln(renderCommandHelp(command));
-    exit(0);
   }
   final ctx = await CliContext.build(args);
   int exitCode;
@@ -66,8 +89,12 @@ Future<void> main(List<String> argv) async {
         break;
       case 'remove':
       case 'rm':
-        exitCode =
-            await runTaskAction(ctx, args, 'remove', supportsDeleteFile: true);
+        exitCode = await runTaskAction(
+          ctx,
+          args,
+          'remove',
+          supportsDeleteFile: true,
+        );
         break;
       case 'watch':
         exitCode = await runWatch(ctx, args);

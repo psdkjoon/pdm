@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'config.dart' show defaultStateDir;
 import 'models.dart';
+
 class TaskStore {
   final String path;
   TaskStore({String? path}) : path = path ?? _defaultPath();
@@ -19,14 +21,14 @@ class TaskStore {
       return [];
     }
   }
+
   void save(List<TaskRecord> tasks) {
     final file = File(path);
     file.parent.createSync(recursive: true);
     final tmp = File('$path.tmp');
     tmp.writeAsStringSync(
-      const JsonEncoder.withIndent('  ').convert(
-        tasks.map((t) => t.toJson()).toList(),
-      ),
+      const JsonEncoder.withIndent('  ')
+          .convert(tasks.map((t) => t.toJson()).toList()),
     );
     tmp.renameSync(path);
   }

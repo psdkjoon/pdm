@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'config.dart' show defaultStateDir;
 import 'models.dart';
+
 class HistoryEntry {
   final String id;
   final String url;
@@ -22,24 +24,25 @@ class HistoryEntry {
   double get averageBytesPerSec =>
       durationMs > 0 ? totalBytes / (durationMs / 1000) : 0;
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'url': url,
-    'savePath': savePath,
-    'status': status.name,
-    'totalBytes': totalBytes,
-    'durationMs': durationMs,
-    'finishedAt': finishedAt.toIso8601String(),
-  };
+        'id': id,
+        'url': url,
+        'savePath': savePath,
+        'status': status.name,
+        'totalBytes': totalBytes,
+        'durationMs': durationMs,
+        'finishedAt': finishedAt.toIso8601String(),
+      };
   factory HistoryEntry.fromJson(Map<String, dynamic> j) => HistoryEntry(
-    id: j['id'] as String,
-    url: j['url'] as String,
-    savePath: j['savePath'] as String,
-    status: statusFromString(j['status'] as String),
-    totalBytes: j['totalBytes'] as int? ?? 0,
-    durationMs: j['durationMs'] as int? ?? 0,
-    finishedAt: DateTime.parse(j['finishedAt'] as String),
-  );
+        id: j['id'] as String,
+        url: j['url'] as String,
+        savePath: j['savePath'] as String,
+        status: statusFromString(j['status'] as String),
+        totalBytes: j['totalBytes'] as int? ?? 0,
+        durationMs: j['durationMs'] as int? ?? 0,
+        finishedAt: DateTime.parse(j['finishedAt'] as String),
+      );
 }
+
 class HistoryLog {
   final String path;
   HistoryLog({String? path}) : path = path ?? defaultHistoryPath();
@@ -52,6 +55,7 @@ class HistoryLog {
       mode: FileMode.append,
     );
   }
+
   List<HistoryEntry> load({int? limit}) {
     final file = File(path);
     if (!file.existsSync()) return [];
@@ -70,6 +74,7 @@ class HistoryLog {
     }
     return entries;
   }
+
   void clear() {
     final file = File(path);
     if (file.existsSync()) file.deleteSync();
