@@ -1,20 +1,21 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:pdm/pdm.dart' show sha256Hex;
+import 'package:pdm/pdm.dart'
+    show defaultConfigPath, defaultStateDir, sha256Hex, uninstallDaemonService;
 
 const List<String> _pdmPayloadChunks = [];
 const List<String> _pdmdPayloadChunks = [];
 const String _pdmSha256 = '';
 const String _pdmdSha256 = '';
 
-void main(List<String> args) {
+Future<void> main(List<String> args) async {
   if (args.isNotEmpty && args.first == 'generate') {
     _runGenerate(args.skip(1).toList());
     return;
   }
   if (args.isNotEmpty && args.first == 'uninstall') {
-    _runUninstall(args.skip(1).toList());
+    await _runUninstall(args.skip(1).toList());
     return;
   }
   _runInstall(args);
@@ -61,8 +62,9 @@ List<String> _chunkify(List<int> payload) {
   final encoded = base64.encode(payload);
   final chunks = <String>[];
   for (var i = 0; i < encoded.length; i += _chunkSize) {
-    final end =
-        (i + _chunkSize < encoded.length) ? i + _chunkSize : encoded.length;
+    final end = (i + _chunkSize < encoded.length)
+        ? i + _chunkSize
+        : encoded.length;
     chunks.add("  '${encoded.substring(i, end)}',");
   }
   return chunks;
@@ -133,76 +135,115 @@ void _runInstall(List<String> args) {
   );
 }
 
-void _runUninstall(List<String> args) {
-  final userInstall = args.contains('--user');
-  final installDir = _installDir(args, userInstall: userInstall);
-  final pdmPath = _binPath(installDir, 'pdm');
-  final pdmdPath = _binPath(installDir, 'pdmd');
+Future<void> _runUninstall(List<String> args) async {
+  final keepConfig = args.contains('--keep-config');
+  final removed = <String>[];
+  final failed = <String>[];
 
-  var removedAny = false;
-  try {
-    for (final path in [pdmPath, pdmdPath]) {
-      final file = File(path);
-      if (file.existsSync()) {
-        file.deleteSync();
-        stdout.writeln('Removed $path');
-        removedAny = true;
-      }
+  void tryDeleteFile(String path) {
+    final file = File(path);
+    if (!file.existsSync()) return;
+    try {
+      file.deleteSync();
+      removed.add(path);
+    } catch (_) {
+      failed.add(path);
     }
-  } on FileSystemException {
-    if (!Platform.isWindows && !userInstall) {
-      stderr.writeln(
-        'Could not remove files from ${installDir.path} (permission denied).',
-      );
-      stderr.writeln('Run this to uninstall system-wide:');
-      stderr.writeln('  sudo ${_selfInvocation()} uninstall');
-      stderr.writeln('Or uninstall your user install:');
-      stderr.writeln('  ${_selfInvocation()} uninstall --user');
-      exit(1);
-    }
-    rethrow;
   }
 
-  if (!Platform.isWindows) {
-    Process.runSync('systemctl', [
-      '--user',
-      'disable',
-      '--now',
-      'pdmd.service',
-    ]);
-    final unit = File('${_homeDir()}/.config/systemd/user/pdmd.service');
-    if (unit.existsSync()) {
-      unit.deleteSync();
-      Process.runSync('systemctl', ['--user', 'daemon-reload']);
-      stdout.writeln('Removed the pdmd systemd --user service.');
+  void tryDeleteDir(String path) {
+    final dir = Directory(path);
+    if (!dir.existsSync()) return;
+    try {
+      dir.deleteSync(recursive: true);
+      removed.add('$path/');
+    } catch (_) {
+      failed.add('$path/');
     }
-    for (final path in [
-      '/usr/share/bash-completion/completions/pdm',
-      '/usr/share/zsh/site-functions/_pdm',
-      '${_homeDir()}/.local/share/bash-completion/completions/pdm',
-      '${_homeDir()}/.local/share/zsh/site-functions/_pdm',
-    ]) {
-      final file = File(path);
-      if (file.existsSync()) {
-        try {
-          file.deleteSync();
-          stdout.writeln('Removed $path');
-        } catch (_) {
-          stderr.writeln(
-            'Could not remove $path (permission denied); run with sudo to clean it up.',
-          );
-        }
+  }
+
+  final systemDir = _installDir(args, userInstall: false);
+  final userDir = _installDir(args, userInstall: true);
+  final candidateDirs = systemDir.path == userDir.path
+      ? [systemDir]
+      : [systemDir, userDir];
+  for (final dir in candidateDirs) {
+    final pdmPath = _binPath(dir, 'pdm');
+    if (File(pdmPath).existsSync()) {
+      try {
+        Process.runSync(pdmPath, ['daemon', 'stop']);
+      } catch (_) {}
+    }
+  }
+
+  try {
+    final result = await uninstallDaemonService();
+    stdout.writeln(result.message);
+  } catch (e) {
+    stderr.writeln('Warning: could not remove the daemon service: $e');
+  }
+
+  for (final path in [
+    '/usr/share/bash-completion/completions/pdm',
+    '/usr/share/zsh/site-functions/_pdm',
+    '${_homeDir()}/.local/share/bash-completion/completions/pdm',
+    '${_homeDir()}/.local/share/zsh/site-functions/_pdm',
+  ]) {
+    tryDeleteFile(path);
+  }
+
+  if (!keepConfig) {
+    tryDeleteDir(Directory(defaultConfigPath()).parent.path);
+    tryDeleteDir(defaultStateDir());
+  }
+
+  for (final dir in candidateDirs) {
+    for (final name in ['pdm', 'pdmd']) {
+      final path = _binPath(dir, name);
+      if (!File(path).existsSync()) continue;
+      try {
+        File(path).deleteSync();
+        removed.add(path);
+      } catch (_) {
+        failed.add(path);
       }
     }
-  } else {
+  }
+  if (Platform.isWindows) {
     Process.runSync('schtasks', ['/delete', '/tn', 'pdm daemon', '/f']);
   }
 
-  if (!removedAny) {
-    stdout.writeln('pdm was not found in ${installDir.path}.');
-  } else {
-    stdout.writeln('pdm has been uninstalled.');
+  stdout.writeln();
+  if (removed.isEmpty && failed.isEmpty) {
+    stdout.writeln('pdm was not found; nothing to uninstall.');
+    return;
   }
+  for (final path in removed) {
+    stdout.writeln('Removed $path');
+  }
+  if (failed.isNotEmpty) {
+    stderr.writeln();
+    stderr.writeln('Could not remove (permission denied):');
+    for (final path in failed) {
+      stderr.writeln('  $path');
+    }
+    stderr.writeln(
+      'Re-run with sudo to remove ${failed.length == 1 ? 'it' : 'them'}:',
+    );
+    stderr.writeln('  sudo ${_selfInvocation()} uninstall');
+  }
+  if (keepConfig) {
+    stdout.writeln();
+    stdout.writeln(
+      'Kept your config and download history (ran with --keep-config).',
+    );
+  }
+  stdout.writeln();
+  stdout.writeln(
+    failed.isEmpty
+        ? 'pdm has been fully uninstalled.'
+        : 'pdm uninstall finished with some leftovers (see above).',
+  );
 }
 
 String _selfInvocation() => Platform.resolvedExecutable;
@@ -219,7 +260,8 @@ Directory _installDir(List<String> args, {required bool userInstall}) {
   }
 
   if (Platform.isWindows) {
-    final localAppData = Platform.environment['LOCALAPPDATA'] ??
+    final localAppData =
+        Platform.environment['LOCALAPPDATA'] ??
         '${Platform.environment['USERPROFILE']}\\AppData\\Local';
     return Directory('$localAppData\\Programs\\pdm');
   }
@@ -234,7 +276,8 @@ String _homeDir() => Platform.environment['HOME'] ?? '.';
 
 void _ensureOnPath(String dirPath, {required bool userInstall}) {
   if (Platform.isWindows) {
-    final script = '''
+    final script =
+        '''
 \$current = [Environment]::GetEnvironmentVariable("Path", "User")
 if (\$current -notlike "*$dirPath*") {
   [Environment]::SetEnvironmentVariable("Path", "\$current;$dirPath", "User")

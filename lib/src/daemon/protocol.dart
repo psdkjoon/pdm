@@ -18,12 +18,8 @@ class DaemonResponse {
   final bool ok;
   final dynamic data;
   final String? error;
-  DaemonResponse.ok([this.data])
-      : ok = true,
-        error = null;
-  DaemonResponse.err(this.error)
-      : ok = false,
-        data = null;
+  DaemonResponse.ok([this.data]) : ok = true, error = null;
+  DaemonResponse.err(this.error) : ok = false, data = null;
   String encode() =>
       jsonEncode({'ok': ok, 'data': data, 'error': error}) + '\n';
   factory DaemonResponse.decode(String line) {

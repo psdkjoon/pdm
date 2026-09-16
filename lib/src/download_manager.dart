@@ -32,11 +32,11 @@ class DownloadManager {
     this.notifications = false,
     int? globalSpeedLimitBytesPerSec,
     HistoryLog? history,
-  })  : store = store ?? TaskStore(),
-        history = history ?? HistoryLog(),
-        _globalLimiter = globalSpeedLimitBytesPerSec != null
-            ? SpeedLimiter(globalSpeedLimitBytesPerSec)
-            : null {
+  }) : store = store ?? TaskStore(),
+       history = history ?? HistoryLog(),
+       _globalLimiter = globalSpeedLimitBytesPerSec != null
+           ? SpeedLimiter(globalSpeedLimitBytesPerSec)
+           : null {
     for (final record in this.store.load()) {
       if (record.status == DownloadStatus.downloading ||
           record.status == DownloadStatus.probing) {
@@ -220,7 +220,8 @@ class DownloadManager {
   }
 
   void _handleTaskFinished(TaskRecord record, DateTime startedAt) {
-    final finished = record.status == DownloadStatus.completed ||
+    final finished =
+        record.status == DownloadStatus.completed ||
         record.status == DownloadStatus.failed;
     if (finished) {
       history.append(
@@ -229,7 +230,7 @@ class DownloadManager {
           url: record.url,
           savePath: record.savePath,
           status: record.status,
-          totalBytes: record.downloadedBytes,
+          downloadedBytes: record.downloadedBytes,
           durationMs: DateTime.now().difference(startedAt).inMilliseconds,
           finishedAt: DateTime.now(),
         ),

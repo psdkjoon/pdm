@@ -102,11 +102,11 @@ class DaemonClient {
         .transform(utf8.decoder)
         .transform(const LineSplitter())
         .listen((line) {
-      if (!completer.isCompleted) {
-        completer.complete(DaemonResponse.decode(line));
-        sub.cancel();
-      }
-    });
+          if (!completer.isCompleted) {
+            completer.complete(DaemonResponse.decode(line));
+            sub.cancel();
+          }
+        });
     _socket!.write(DaemonRequest(command, args).encode());
     return completer.future.timeout(
       const Duration(seconds: 30),
@@ -123,14 +123,14 @@ class DaemonClient {
         .transform(utf8.decoder)
         .transform(const LineSplitter())
         .listen(
-      (line) {
-        if (DaemonEvent.isEvent(line)) {
-          final event = DaemonEvent.decode(line);
-          if (event.task['id'] == id) controller.add(event);
-        }
-      },
-      onDone: controller.close,
-    );
+          (line) {
+            if (DaemonEvent.isEvent(line)) {
+              final event = DaemonEvent.decode(line);
+              if (event.task['id'] == id) controller.add(event);
+            }
+          },
+          onDone: controller.close,
+        );
     controller.onCancel = () => _sub?.cancel();
     return controller.stream;
   }

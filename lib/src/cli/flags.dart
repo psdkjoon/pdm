@@ -6,12 +6,22 @@ class FlagDef {
   final FlagKind kind;
   final String help;
   final String? defaultValue;
+
+  final List<String> conflicts;
+
+  final List<String> choices;
+
+  final bool isPath;
+
   const FlagDef(
     this.long,
     this.short,
     this.kind,
     this.help, {
     this.defaultValue,
+    this.conflicts = const [],
+    this.choices = const [],
+    this.isPath = false,
   });
 }
 
@@ -26,6 +36,7 @@ const globalFlags = <FlagDef>[
     's',
     FlagKind.string,
     'Daemon unix socket path (Linux)',
+    isPath: true,
   ),
   FlagDef(
     'no-spawn',
@@ -33,18 +44,26 @@ const globalFlags = <FlagDef>[
     FlagKind.flag,
     'Fail instead of auto-spawning the daemon',
   ),
-  FlagDef('config', 'g', FlagKind.string, 'Path to config file'),
+  FlagDef('config', 'g', FlagKind.string, 'Path to config file', isPath: true),
   FlagDef(
     'theme',
     'T',
     FlagKind.string,
     'Progress/output theme: default, rainbow, catppuccin',
+    choices: ['default', 'rainbow', 'catppuccin'],
   ),
   FlagDef('no-color', 'N', FlagKind.flag, 'Disable ANSI colors'),
   FlagDef('help', 'h', FlagKind.flag, 'Show help for this command'),
 ];
 const addFlags = <FlagDef>[
-  FlagDef('output', 'o', FlagKind.string, 'Save path for the downloaded file'),
+  FlagDef(
+    'output',
+    'o',
+    FlagKind.string,
+    'Save path for the downloaded file (single-url only)',
+    isPath: true,
+    conflicts: ['file'],
+  ),
   FlagDef(
     'connections',
     'c',
@@ -56,12 +75,14 @@ const addFlags = <FlagDef>[
     'f',
     FlagKind.flag,
     'Block in this process with a live progress bar',
+    conflicts: ['background'],
   ),
   FlagDef(
     'background',
     'b',
     FlagKind.flag,
     'Run via the daemon and return immediately (default)',
+    conflicts: ['foreground'],
   ),
   FlagDef(
     'header',
@@ -82,6 +103,7 @@ const addFlags = <FlagDef>[
     'J',
     FlagKind.string,
     'Netscape-format cookie file (wins over --cookie)',
+    isPath: true,
   ),
   FlagDef('proxy', 'p', FlagKind.string, 'HTTP proxy URL'),
   FlagDef('proxy-user', 'Q', FlagKind.string, 'Proxy basic-auth username'),
@@ -144,6 +166,7 @@ const addFlags = <FlagDef>[
     'a',
     FlagKind.string,
     'Schedule start time: ISO date/time, "HH:mm", or "+<duration>"',
+    conflicts: ['on-startup'],
   ),
   FlagDef(
     'every',
@@ -156,12 +179,14 @@ const addFlags = <FlagDef>[
     'S',
     FlagKind.flag,
     'Defer this download until the daemon next starts',
+    conflicts: ['at'],
   ),
   FlagDef(
     'on-complete',
     'G',
     FlagKind.string,
     'Command/alias to run when the download finishes',
+    choices: ['shutdown', 'restart', 'sleep', 'hibernate', 'lock'],
   ),
   FlagDef(
     'allow-duplicate',
@@ -174,15 +199,34 @@ const addFlags = <FlagDef>[
     'B',
     FlagKind.string,
     'Batch-add every URL (one per line) from this file',
+    isPath: true,
+    conflicts: ['output'],
   ),
 ];
 const listFlags = <FlagDef>[
-  FlagDef('status', 'S', FlagKind.string, 'Filter by status'),
+  FlagDef(
+    'status',
+    'S',
+    FlagKind.string,
+    'Filter by status',
+    choices: [
+      'queued',
+      'scheduled',
+      'probing',
+      'downloading',
+      'paused',
+      'verifying',
+      'completed',
+      'failed',
+      'canceled',
+    ],
+  ),
   FlagDef(
     'sort',
     't',
     FlagKind.string,
     'Sort field: created, updated, progress, name',
+    choices: ['created', 'updated', 'progress', 'name'],
   ),
   FlagDef('reverse', 'R', FlagKind.flag, 'Reverse the sort order'),
   FlagDef('limit', 'L', FlagKind.string, 'Maximum number of rows to show'),
@@ -192,7 +236,7 @@ const taskActionFlags = <FlagDef>[
     'all',
     'A',
     FlagKind.flag,
-    'Apply to every matching task instead of one id',
+    'Apply to every matching task instead of the given ids',
   ),
   FlagDef('force', 'F', FlagKind.flag, 'Skip confirmation prompts'),
 ];
@@ -209,8 +253,20 @@ const watchFlags = <FlagDef>[
   ),
 ];
 const configFlags = <FlagDef>[
-  FlagDef('format', 'f', FlagKind.string, 'Output format: yaml, toml, json'),
-  FlagDef('output', 'o', FlagKind.string, 'Write to file instead of stdout'),
+  FlagDef(
+    'format',
+    'f',
+    FlagKind.string,
+    'Output format: yaml, toml, json',
+    choices: ['yaml', 'toml', 'json'],
+  ),
+  FlagDef(
+    'output',
+    'o',
+    FlagKind.string,
+    'Write to file instead of stdout',
+    isPath: true,
+  ),
   FlagDef('force', 'F', FlagKind.flag, 'Overwrite an existing file'),
 ];
 const daemonFlags = <FlagDef>[
@@ -218,7 +274,7 @@ const daemonFlags = <FlagDef>[
     'foreground',
     'f',
     FlagKind.flag,
-    'Run the daemon attached, for debugging',
+    'Run the daemon attached, for debugging (only with "start")',
   ),
 ];
 const historyFlags = <FlagDef>[
@@ -231,12 +287,14 @@ const completionFlags = <FlagDef>[
     'p',
     FlagKind.flag,
     'Print the script to stdout instead of installing it',
+    conflicts: ['user'],
   ),
   FlagDef(
     'user',
     'u',
     FlagKind.flag,
     'Install to the per-user completion dir instead of system-wide',
+    conflicts: ['print'],
   ),
 ];
 const Map<String, List<FlagDef>> commandFlags = {
@@ -251,4 +309,19 @@ const Map<String, List<FlagDef>> commandFlags = {
   'daemon': daemonFlags,
   'history': historyFlags,
   'completion': completionFlags,
+};
+
+const Map<String, Map<String, String>> commandPositionalChoices = {
+  'daemon': {
+    'start': 'Start the daemon (spawns it if not already running)',
+    'stop': 'Stop the running daemon',
+    'status': 'Check whether the daemon is running',
+    'enable': 'Start the daemon automatically at login',
+    'disable': 'Remove the auto-start entry',
+  },
+  'completion': {
+    'bash': 'Install/print the bash completion script',
+    'zsh': 'Install/print the zsh completion script',
+  },
+  'config': {'dump': 'Print (or write) the default config file'},
 };

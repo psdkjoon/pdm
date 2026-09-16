@@ -42,7 +42,7 @@ jobs:
         id: version
         shell: pwsh
         run: |
-          $version = dart pub deps --json | jq -r '.packages[0].version'
+          $version = (Select-String -Path pubspec.yaml -Pattern '^version:\s*(.+)$').Matches[0].Groups[1].Value.Trim()
           "version=$version" >> $env:GITHUB_OUTPUT
       - name: Compile pdm
         run: >
@@ -80,6 +80,7 @@ jobs:
           cp dist/pdm-linux-x64/pdm-linux-x64 release/pdm-linux-x64
           cp dist/pdm-windows-x64/pdm-windows-x64.exe release/pdm-windows-x64.exe
           cd release
+          sha256sum pdm-linux-x64 pdm-windows-x64.exe > SHA256SUMS
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}

@@ -15,11 +15,12 @@ class DownloadTask {
   bool _pauseRequested = false;
   bool _cancelRequested = false;
   final List<StreamSubscription<List<int>>> _subs = [];
+  final List<Completer<bool>> _pendingSegmentCompleters = [];
   RandomAccessFile? _raf;
   Completer<void>? _done;
   String? _cookieHeader;
   DownloadTask(this.record, {HttpClient? client})
-      : client = client ?? HttpClient() {
+    : client = client ?? HttpClient() {
     this.client.maxConnectionsPerHost = record.options.connections + 2;
     this.client.connectionTimeout = Duration(
       seconds: record.options.timeoutSeconds,
@@ -42,11 +43,11 @@ class DownloadTask {
         final proxyPass = record.options.proxyPass ?? '';
         this.client.authenticateProxy = (host, port, scheme, realm) async {
           this.client.addProxyCredentials(
-                host,
-                port,
-                realm ?? '',
-                HttpClientBasicCredentials(proxyUser, proxyPass),
-              );
+            host,
+            port,
+            realm ?? '',
+            HttpClientBasicCredentials(proxyUser, proxyPass),
+          );
           return true;
         };
       }
@@ -113,24 +114,38 @@ class DownloadTask {
 
   void _buildSegmentsIfNeeded() {
     if (record.segments.isNotEmpty) return;
-    if (record.supportsRange && record.totalBytes != null) {
-      final total = record.totalBytes!;
-      final n = record.options.connections.clamp(1, 32);
-      final chunk = total ~/ n;
-      final segments = <Segment>[];
-      var start = 0;
-      for (var i = 0; i < n; i++) {
-        final end = (i == n - 1) ? total - 1 : start + chunk - 1;
-        if (start > end) break;
-        segments.add(Segment(index: i, start: start, end: end));
-        start = end + 1;
-      }
-      record.segments = segments;
+    final totalBytes = record.totalBytes;
+    if (record.supportsRange && totalBytes != null && totalBytes > 0) {
+      record.segments = _splitIntoSegments(
+        totalBytes: totalBytes,
+        requestedSegmentCount: record.options.connections.clamp(1, 32),
+      );
     } else {
       record.segments = [
-        Segment(index: 0, start: 0, end: (record.totalBytes ?? 1) - 1),
+        Segment(index: 0, start: 0, end: (totalBytes ?? 1) - 1),
       ];
     }
+  }
+
+  List<Segment> _splitIntoSegments({
+    required int totalBytes,
+    required int requestedSegmentCount,
+  }) {
+    final segmentCount = requestedSegmentCount > totalBytes
+        ? totalBytes
+        : requestedSegmentCount;
+    final baseSegmentLength = totalBytes ~/ segmentCount;
+    final segmentsWithExtraByte = totalBytes % segmentCount;
+    final segments = <Segment>[];
+    var start = 0;
+    for (var i = 0; i < segmentCount; i++) {
+      final segmentLength =
+          baseSegmentLength + (i < segmentsWithExtraByte ? 1 : 0);
+      final end = start + segmentLength - 1;
+      segments.add(Segment(index: i, start: start, end: end));
+      start = end + 1;
+    }
+    return segments;
   }
 
   Future<void> run({SpeedLimiter? globalLimiter}) async {
@@ -164,7 +179,7 @@ class DownloadTask {
     }
     destFile.parent.createSync(recursive: true);
     _raf = destFile.openSync(mode: isResume ? FileMode.append : FileMode.write);
-    if (!isResume && record.totalBytes != null) {
+    if (!isResume && record.totalBytes != null && record.totalBytes! > 0) {
       _raf!.setPositionSync(record.totalBytes! - 1);
       _raf!.writeByteSync(0);
     }
@@ -290,17 +305,30 @@ class DownloadTask {
         cancelOnError: true,
       );
       _subs.add(sub);
-      final result = await completer.future;
-      _subs.remove(sub);
-      return result;
+      _pendingSegmentCompleters.add(completer);
+      try {
+        return await completer.future;
+      } finally {
+        _subs.remove(sub);
+        _pendingSegmentCompleters.remove(completer);
+      }
     } catch (e) {
       record.error = e.toString();
       return false;
     }
   }
 
+  void _resolvePendingSegmentCompleters() {
+    for (final completer in List<Completer<bool>>.from(
+      _pendingSegmentCompleters,
+    )) {
+      if (!completer.isCompleted) completer.complete(true);
+    }
+  }
+
   Future<void> pause() async {
     _pauseRequested = true;
+    _resolvePendingSegmentCompleters();
     final subs = List<StreamSubscription<List<int>>>.from(_subs);
     for (final s in subs) {
       await s.cancel();
@@ -311,6 +339,7 @@ class DownloadTask {
 
   Future<void> cancel() async {
     _cancelRequested = true;
+    _resolvePendingSegmentCompleters();
     final subs = List<StreamSubscription<List<int>>>.from(_subs);
     for (final s in subs) {
       await s.cancel();

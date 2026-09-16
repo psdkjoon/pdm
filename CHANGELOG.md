@@ -1,4 +1,46 @@
-## 3.0.0
+## 3.1.0
+
+- Added: `pause`, `resume`, `cancel`, `remove`, and `watch` now accept
+  more than one id (`pdm remove id1 id2 id3`), with a batch confirmation
+  prompt and a per-id success/failure summary. `add` now accepts more
+  than one URL directly on the command line (`pdm add url1 url2`) in
+  addition to `--file`.
+- Added: much smarter, richer shell completion (`pdm completion
+  bash|zsh`). It's generated straight from pdm's own flag definitions
+  instead of a static word list, so it can't drift out of sync:
+  - Only offers flags that are still legal given what's already been
+    typed — mutually exclusive flags (`--foreground`/`--background`,
+    `--file`/`--output`, `--at`/`--on-startup`) won't both be suggested,
+    and a flag already used isn't offered again.
+  - Fills in the actual legal values for flags that take one, e.g.
+    `--status`, `--sort`, `--format`, `--theme`, `--on-complete`.
+  - Completes file paths for path-taking flags (`--output`, `--file`,
+    `--cookie-file`, ...).
+  - Completes task ids for `pause`/`resume`/`cancel`/`remove`/`watch` by
+    asking the running daemon, and sub-actions for `daemon`, `completion`,
+    and `config`.
+  - On zsh, every suggestion — commands, flags, values, actions, and task
+    ids — comes with a description (bash can't show these; it's a shell
+    limitation, so bash completion is value/context-aware but word-only).
+  - `pdm completion` with no argument now auto-detects bash/zsh from
+    `$SHELL` instead of requiring it to be spelled out.
+- Added: `uninstall` now actually removes everything pdm installed, not
+  just the binaries — it stops a running daemon, removes the daemon
+  auto-start service (systemd/launchd/schtasks), deletes both bash and
+  zsh completion scripts, and deletes your config file and download
+  state/history (`~/.config/pdm`, `~/.local/state/pdm`). Pass
+  `--keep-config` to keep the config and history instead. It also now
+  checks both the system and per-user install locations regardless of
+  `--user`, so it works no matter how pdm was originally installed.
+- Added: `pdm help <command>` now lists a command's sub-actions (e.g.
+  `daemon start|stop|...`) and, for flags with a fixed set of legal
+  values, shows them inline.
+- Added: an unrecognized `--flag` now suggests the closest known flag
+  name, the same way unknown commands already do.
+- Fixed: `--output` combined with `--file` (batch add) silently ignored
+  `--output`; it's now a clear error instead.
+
+
 
 - Fixed: `pdm watch <id>` and `pdm add <url>` (foreground mode) could hang
   forever if the daemon connection dropped mid-download (e.g. the daemon

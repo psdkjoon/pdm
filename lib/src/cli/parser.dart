@@ -1,5 +1,5 @@
 import 'flags.dart';
-import '../util.dart' show parseDurationSpec;
+import '../util.dart' show closestMatch, parseDurationSpec;
 export '../util.dart' show parseByteSize, parseDurationSpec;
 
 class ParsedArgs {
@@ -44,7 +44,14 @@ ParsedArgs parseArgs(
       final name = eq == -1 ? arg.substring(2) : arg.substring(2, eq);
       inlineValue = eq == -1 ? null : arg.substring(eq + 1);
       def = byLong[name];
-      if (def == null) throw FlagParseException('Unknown flag --$name');
+      if (def == null) {
+        final suggestion = closestMatch(name, byLong.keys);
+        throw FlagParseException(
+          suggestion == null
+              ? 'Unknown flag --$name'
+              : 'Unknown flag --$name. Did you mean --$suggestion?',
+        );
+      }
     } else if (arg.startsWith('-') && arg.length > 1) {
       final name = arg.substring(1);
       def = byShort[name];

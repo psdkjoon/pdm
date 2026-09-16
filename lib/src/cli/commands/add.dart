@@ -30,7 +30,8 @@ Future<int> runAdd(CliContext ctx, ParsedArgs args) async {
     retryDelayMs: args.intVal('retry-delay') ?? ctx.config.retryDelayMs,
     retryBackoff: !args.flag('linear-retries') && ctx.config.retryBackoff,
     timeoutSeconds: args.intVal('timeout') ?? ctx.config.timeoutSeconds,
-    speedLimitBytesPerSec: parseByteSize(args.str('speed-limit')) ??
+    speedLimitBytesPerSec:
+        parseByteSize(args.str('speed-limit')) ??
         ctx.config.speedLimitBytesPerSec,
     checksumAlgo: checksum?.$1,
     checksumValue: checksum?.$2,
@@ -49,6 +50,14 @@ Future<int> runAdd(CliContext ctx, ParsedArgs args) async {
   final foreground = args.flag('foreground');
   final filePath = args.str('file');
   if (filePath != null) {
+    if (args.str('output') != null) {
+      stderr.writeln(
+        ctx.theme.error(
+          '--output cannot be used with --file (each url in the batch gets its own name); drop --output.',
+        ),
+      );
+      return 1;
+    }
     return _runBatch(
       ctx,
       filePath,
@@ -59,12 +68,32 @@ Future<int> runAdd(CliContext ctx, ParsedArgs args) async {
     );
   }
   if (args.positionals.isEmpty) {
-    stderr.writeln('Usage: pdm add <url> [flags]');
+    stderr.writeln('Usage: pdm add <url> [<url> ...] [flags]');
     return 1;
   }
-  final url = args.positionals.first;
-  if (foreground) {
-    return _runForeground(
+  final urls = args.positionals;
+  if (urls.length > 1 && args.str('output') != null) {
+    stderr.writeln(
+      ctx.theme.error(
+        '--output can only be used with a single url; drop it or add urls one at a time.',
+      ),
+    );
+    return 1;
+  }
+  if (urls.length == 1) {
+    final url = urls.first;
+    if (foreground) {
+      return _runForeground(
+        ctx,
+        url,
+        args.str('output'),
+        options,
+        startPaused,
+        schedule,
+        allowDuplicate,
+      );
+    }
+    return _runBackground(
       ctx,
       url,
       args.str('output'),
@@ -74,15 +103,81 @@ Future<int> runAdd(CliContext ctx, ParsedArgs args) async {
       allowDuplicate,
     );
   }
-  return _runBackground(
+  if (foreground) {
+    return _runForegroundMany(
+      ctx,
+      urls,
+      options,
+      startPaused,
+      schedule,
+      allowDuplicate,
+    );
+  }
+  return _runBackgroundMany(
     ctx,
-    url,
-    args.str('output'),
+    urls,
     options,
     startPaused,
     schedule,
     allowDuplicate,
   );
+}
+
+Future<int> _runForegroundMany(
+  CliContext ctx,
+  List<String> urls,
+  TaskOptions options,
+  bool startPaused,
+  Schedule? schedule,
+  bool allowDuplicate,
+) async {
+  var failures = 0;
+  for (final url in urls) {
+    final code = await _runForeground(
+      ctx,
+      url,
+      null,
+      options,
+      startPaused,
+      schedule,
+      allowDuplicate,
+    );
+    if (code != 0) failures++;
+  }
+  ctx.log('Completed ${urls.length - failures}/${urls.length} downloads.');
+  return failures == 0 ? 0 : 1;
+}
+
+Future<int> _runBackgroundMany(
+  CliContext ctx,
+  List<String> urls,
+  TaskOptions options,
+  bool startPaused,
+  Schedule? schedule,
+  bool allowDuplicate,
+) async {
+  await ctx.client.connect(allowSpawn: ctx.allowSpawn);
+  var failures = 0;
+  for (final url in urls) {
+    final resp = await ctx.client.request('add', {
+      'url': url,
+      'savePath': null,
+      'options': options.toJson(),
+      'startPaused': startPaused,
+      'schedule': schedule?.toJson(),
+      'allowDuplicate': allowDuplicate,
+    });
+    if (!resp.ok) {
+      failures++;
+      stderr.writeln(ctx.theme.error('$url: ${resp.error}'));
+    } else {
+      final id = (resp.data as Map)['id'];
+      ctx.log('Added $id  $url');
+    }
+  }
+  await ctx.client.close();
+  ctx.log('Queued ${urls.length - failures}/${urls.length} downloads.');
+  return failures == 0 ? 0 : 1;
 }
 
 Schedule? _buildSchedule(ParsedArgs args) {

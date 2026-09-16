@@ -1,3 +1,4 @@
+import '../util.dart' show closestMatch;
 import 'flags.dart';
 
 class CommandInfo {
@@ -8,23 +9,32 @@ class CommandInfo {
 }
 
 const Map<String, CommandInfo> commandInfo = {
-  'add': CommandInfo('pdm add <url> [flags]', 'Add and start a download'),
+  'add': CommandInfo(
+    'pdm add <url> [<url> ...] [flags]',
+    'Add and start one or more downloads',
+  ),
   'list': CommandInfo('pdm list [flags]', 'List all tasks', aliases: ['ls']),
-  'pause': CommandInfo('pdm pause <id> [flags]', 'Pause a task'),
+  'pause': CommandInfo(
+    'pdm pause <id> [<id> ...] [flags]',
+    'Pause one or more tasks',
+  ),
   'resume': CommandInfo(
-    'pdm resume <id> [flags]',
-    'Resume a paused/queued task',
+    'pdm resume <id> [<id> ...] [flags]',
+    'Resume one or more paused/queued tasks',
     aliases: ['start'],
   ),
-  'cancel': CommandInfo('pdm cancel <id> [flags]', 'Cancel a task'),
+  'cancel': CommandInfo(
+    'pdm cancel <id> [<id> ...] [flags]',
+    'Cancel one or more tasks',
+  ),
   'remove': CommandInfo(
-    'pdm remove <id> [flags]',
-    'Remove a task',
+    'pdm remove <id> [<id> ...] [flags]',
+    'Remove one or more tasks',
     aliases: ['rm'],
   ),
   'watch': CommandInfo(
-    'pdm watch <id> [flags]',
-    'Attach a live progress view to a task',
+    'pdm watch <id> [<id> ...] [flags]',
+    'Attach a live progress view to one or more tasks',
   ),
   'daemon': CommandInfo(
     'pdm daemon <start|stop|status|enable|disable> [flags]',
@@ -97,10 +107,21 @@ String renderCommandHelp(String command) {
     buf.writeln('Aliases: ${info.aliases.join(', ')}');
   }
   buf.writeln();
+  final actions = commandPositionalChoices[resolved];
+  if (actions != null) {
+    buf.writeln('Actions:');
+    for (final entry in actions.entries) {
+      buf.writeln('  ${entry.key.padRight(26)}${entry.value}');
+    }
+    buf.writeln();
+  }
   if (flags.isNotEmpty) {
     buf.writeln('Flags:');
     for (final f in flags) {
-      buf.writeln(_flagLine(f));
+      final choiceSuffix = f.choices.isEmpty
+          ? ''
+          : ' (one of: ${f.choices.join(', ')})';
+      buf.writeln('${_flagLine(f)}$choiceSuffix');
     }
     buf.writeln();
   }
@@ -121,41 +142,11 @@ String _resolveAlias(String command) {
 
 String _unknownCommandMessage(String command) {
   final known = [...commandFlags.keys, ..._topLevelOnlyCommands];
-  final suggestion = _closestMatch(command, known);
+  final suggestion = closestMatch(command, known);
   final buf = StringBuffer('Unknown command "$command".');
   if (suggestion != null) {
     buf.write(' Did you mean "$suggestion"?');
   }
   buf.write(' Run "pdm help" for a list of commands.');
   return buf.toString();
-}
-
-String? _closestMatch(String input, List<String> candidates) {
-  String? best;
-  var bestDistance = 3;
-  for (final candidate in candidates) {
-    final distance = _levenshtein(input, candidate);
-    if (distance < bestDistance) {
-      bestDistance = distance;
-      best = candidate;
-    }
-  }
-  return best;
-}
-
-int _levenshtein(String a, String b) {
-  final dp = List.generate(a.length + 1, (_) => List.filled(b.length + 1, 0));
-  for (var i = 0; i <= a.length; i++) dp[i][0] = i;
-  for (var j = 0; j <= b.length; j++) dp[0][j] = j;
-  for (var i = 1; i <= a.length; i++) {
-    for (var j = 1; j <= b.length; j++) {
-      final cost = a[i - 1] == b[j - 1] ? 0 : 1;
-      dp[i][j] = [
-        dp[i - 1][j] + 1,
-        dp[i][j - 1] + 1,
-        dp[i - 1][j - 1] + cost,
-      ].reduce((x, y) => x < y ? x : y);
-    }
-  }
-  return dp[a.length][b.length];
 }

@@ -26,7 +26,7 @@ Future<int> runHistory(CliContext ctx, ParsedArgs args) async {
   var totalBytes = 0;
   var totalMs = 0;
   for (final e in entries) {
-    totalBytes += e.totalBytes;
+    totalBytes += e.downloadedBytes;
     totalMs += e.durationMs;
   }
   stdout.writeln(
@@ -44,11 +44,12 @@ Future<int> runHistory(CliContext ctx, ParsedArgs args) async {
         ? ctx.theme.success(statusText)
         : ctx.theme.error(statusText);
     stdout.writeln(
-      '${_formatTime(e.finishedAt).padRight(17)}  $statusColored  ${formatBytes(e.totalBytes).padRight(9)}  ${speed.padRight(11)}  $name',
+      '${_formatTime(e.finishedAt).padRight(17)}  $statusColored  ${formatBytes(e.downloadedBytes).padRight(9)}  ${speed.padRight(11)}  $name',
     );
   }
-  final avgSpeed =
-      totalMs > 0 ? formatSpeed((totalBytes / (totalMs / 1000)).round()) : '-';
+  final avgSpeed = totalMs > 0
+      ? formatSpeed((totalBytes / (totalMs / 1000)).round())
+      : '-';
   stdout.writeln();
   stdout.writeln(
     'Total: ${formatBytes(totalBytes)} across ${entries.length} task(s), avg speed $avgSpeed',

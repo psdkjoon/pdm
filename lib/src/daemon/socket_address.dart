@@ -8,12 +8,12 @@ class SocketAddress {
   final String tcpHost;
   final int tcpPort;
   SocketAddress.unix(this.unixPath)
-      : useUnixSocket = true,
-        tcpHost = '127.0.0.1',
-        tcpPort = 0;
+    : useUnixSocket = true,
+      tcpHost = '127.0.0.1',
+      tcpPort = 0;
   SocketAddress.tcp(this.tcpHost, this.tcpPort)
-      : useUnixSocket = false,
-        unixPath = null;
+    : useUnixSocket = false,
+      unixPath = null;
 }
 
 SocketAddress resolveSocketAddress({

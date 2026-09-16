@@ -29,8 +29,9 @@ void printProgressLine(
   final pct = (record.progress * 100).toStringAsFixed(1);
   final bar = theme.bar(record.progress);
   final downloaded = formatBytes(record.downloadedBytes);
-  final total =
-      record.totalBytes != null ? formatBytes(record.totalBytes!) : '?';
+  final total = record.totalBytes != null
+      ? formatBytes(record.totalBytes!)
+      : '?';
   final speed = bytesPerSecond != null ? ' ${formatSpeed(bytesPerSecond)}' : '';
   stdout.write('\r$bar $pct% ($downloaded/$total)$speed   ');
 }

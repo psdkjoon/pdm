@@ -57,78 +57,73 @@ class PdmConfig {
   });
   static const PdmConfig defaults = PdmConfig();
   Map<String, dynamic> toJson() => {
-        'connections': connections,
-        'maxConcurrentTasks': maxConcurrentTasks,
-        'retries': retries,
-        'retryDelay': retryDelayMs,
-        'retryBackoff': retryBackoff,
-        'timeout': timeoutSeconds,
-        'speedLimit': speedLimitBytesPerSec,
-        'globalSpeedLimit': globalSpeedLimitBytesPerSec,
-        'maxRedirects': maxRedirects,
-        'insecure': insecure,
-        'downloadDir': downloadDir,
-        'theme': theme,
-        'color': color,
-        'daemonHost': daemonHost,
-        'daemonPort': daemonPort,
-        'socketPath': socketPath,
-        'proxy': proxy,
-        'proxyUser': proxyUser,
-        'proxyPass': proxyPass,
-        'proxyBypass': proxyBypass,
-        'onCompleteAliases': onCompleteAliases,
-        'rules': rules.map((r) => r.toJson()).toList(),
-        'notifications': notifications,
-        'checkDiskSpace': checkDiskSpace,
-      };
+    'connections': connections,
+    'maxConcurrentTasks': maxConcurrentTasks,
+    'retries': retries,
+    'retryDelay': retryDelayMs,
+    'retryBackoff': retryBackoff,
+    'timeout': timeoutSeconds,
+    'speedLimit': speedLimitBytesPerSec,
+    'globalSpeedLimit': globalSpeedLimitBytesPerSec,
+    'maxRedirects': maxRedirects,
+    'insecure': insecure,
+    'downloadDir': downloadDir,
+    'theme': theme,
+    'color': color,
+    'daemonHost': daemonHost,
+    'daemonPort': daemonPort,
+    'socketPath': socketPath,
+    'proxy': proxy,
+    'proxyUser': proxyUser,
+    'proxyPass': proxyPass,
+    'proxyBypass': proxyBypass,
+    'onCompleteAliases': onCompleteAliases,
+    'rules': rules.map((r) => r.toJson()).toList(),
+    'notifications': notifications,
+    'checkDiskSpace': checkDiskSpace,
+  };
   factory PdmConfig.fromMap(Map<String, dynamic> m) => PdmConfig(
-        connections:
-            m.getInt('connections', defaultValue: defaults.connections),
-        maxConcurrentTasks: m.getInt(
-          'maxConcurrentTasks',
-          defaultValue: defaults.maxConcurrentTasks,
-        ),
-        retries: m.getInt('retries', defaultValue: defaults.retries),
-        retryDelayMs:
-            m.getInt('retryDelay', defaultValue: defaults.retryDelayMs),
-        retryBackoff: m.getBool(
-          'retryBackoff',
-          defaultValue: defaults.retryBackoff,
-        ),
-        timeoutSeconds:
-            m.getInt('timeout', defaultValue: defaults.timeoutSeconds),
-        speedLimitBytesPerSec:
-            m['speedLimit'] == null ? null : m.getInt('speedLimit'),
-        globalSpeedLimitBytesPerSec:
-            m['globalSpeedLimit'] == null ? null : m.getInt('globalSpeedLimit'),
-        maxRedirects:
-            m.getInt('maxRedirects', defaultValue: defaults.maxRedirects),
-        insecure: m.getBool('insecure', defaultValue: defaults.insecure),
-        downloadDir:
-            m.getString('downloadDir', defaultValue: defaults.downloadDir),
-        theme: m.getString('theme', defaultValue: defaults.theme),
-        color: m.getBool('color', defaultValue: defaults.color),
-        daemonHost:
-            m.getString('daemonHost', defaultValue: defaults.daemonHost),
-        daemonPort: m.getInt('daemonPort', defaultValue: defaults.daemonPort),
-        socketPath:
-            m.getString('socketPath', defaultValue: defaults.socketPath),
-        proxy: m['proxy'] as String?,
-        proxyUser: m['proxyUser'] as String?,
-        proxyPass: m['proxyPass'] as String?,
-        proxyBypass: _stringList(m['proxyBypass']),
-        onCompleteAliases: _stringMap(m['onCompleteAliases']),
-        rules: _ruleList(m['rules']),
-        notifications: m.getBool(
-          'notifications',
-          defaultValue: defaults.notifications,
-        ),
-        checkDiskSpace: m.getBool(
-          'checkDiskSpace',
-          defaultValue: defaults.checkDiskSpace,
-        ),
-      );
+    connections: m.getInt('connections', defaultValue: defaults.connections),
+    maxConcurrentTasks: m.getInt(
+      'maxConcurrentTasks',
+      defaultValue: defaults.maxConcurrentTasks,
+    ),
+    retries: m.getInt('retries', defaultValue: defaults.retries),
+    retryDelayMs: m.getInt('retryDelay', defaultValue: defaults.retryDelayMs),
+    retryBackoff: m.getBool(
+      'retryBackoff',
+      defaultValue: defaults.retryBackoff,
+    ),
+    timeoutSeconds: m.getInt('timeout', defaultValue: defaults.timeoutSeconds),
+    speedLimitBytesPerSec: m['speedLimit'] == null
+        ? null
+        : m.getInt('speedLimit'),
+    globalSpeedLimitBytesPerSec: m['globalSpeedLimit'] == null
+        ? null
+        : m.getInt('globalSpeedLimit'),
+    maxRedirects: m.getInt('maxRedirects', defaultValue: defaults.maxRedirects),
+    insecure: m.getBool('insecure', defaultValue: defaults.insecure),
+    downloadDir: m.getString('downloadDir', defaultValue: defaults.downloadDir),
+    theme: m.getString('theme', defaultValue: defaults.theme),
+    color: m.getBool('color', defaultValue: defaults.color),
+    daemonHost: m.getString('daemonHost', defaultValue: defaults.daemonHost),
+    daemonPort: m.getInt('daemonPort', defaultValue: defaults.daemonPort),
+    socketPath: m.getString('socketPath', defaultValue: defaults.socketPath),
+    proxy: m['proxy'] as String?,
+    proxyUser: m['proxyUser'] as String?,
+    proxyPass: m['proxyPass'] as String?,
+    proxyBypass: _stringList(m['proxyBypass']),
+    onCompleteAliases: _stringMap(m['onCompleteAliases']),
+    rules: _ruleList(m['rules']),
+    notifications: m.getBool(
+      'notifications',
+      defaultValue: defaults.notifications,
+    ),
+    checkDiskSpace: m.getBool(
+      'checkDiskSpace',
+      defaultValue: defaults.checkDiskSpace,
+    ),
+  );
 }
 
 List<String> _stringList(dynamic raw) {

@@ -9,8 +9,9 @@ Future<int?> availableDiskSpace(String dirPath) async {
       dir = parent;
     }
     if (Platform.isWindows) {
-      final drive =
-          dir.length >= 2 && dir[1] == ':' ? dir.substring(0, 1) : 'C';
+      final drive = dir.length >= 2 && dir[1] == ':'
+          ? dir.substring(0, 1)
+          : 'C';
       final result = await Process.run('powershell', [
         '-NoProfile',
         '-Command',

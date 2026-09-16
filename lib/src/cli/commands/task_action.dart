@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:io';
 
 import '../../models.dart';
@@ -26,11 +27,11 @@ Future<int> runTaskAction(
         .toList();
   } else {
     if (args.positionals.isEmpty) {
-      stderr.writeln('Usage: pdm $action <id> [flags]');
+      stderr.writeln('Usage: pdm $action <id> [<id> ...] [flags]');
       await ctx.client.close();
       return 1;
     }
-    ids = [args.positionals.first];
+    ids = LinkedHashSet<String>.from(args.positionals).toList();
   }
   final destructive = action == 'remove' || action == 'cancel';
   if (destructive &&
@@ -38,9 +39,12 @@ Future<int> runTaskAction(
       stdin.hasTerminal &&
       ids.isNotEmpty) {
     final deleteFile = supportsDeleteFile && args.flag('delete-file');
+    final idList = ids.length <= 5
+        ? ids.join(', ')
+        : '${ids.take(5).join(', ')}, and ${ids.length - 5} more';
     final label = deleteFile
-        ? '$action (and delete file) ${ids.length} task(s)'
-        : '$action ${ids.length} task(s)';
+        ? '$action (and delete file) ${ids.length} task(s): $idList'
+        : '$action ${ids.length} task(s): $idList';
     stdout.write('$label? [y/N] ');
     final answer = stdin.readLineSync()?.trim().toLowerCase();
     if (answer != 'y' && answer != 'yes') {
@@ -49,7 +53,13 @@ Future<int> runTaskAction(
       return 1;
     }
   }
+  if (ids.isEmpty) {
+    ctx.log('Nothing to $action.');
+    await ctx.client.close();
+    return 0;
+  }
   var exitCode = 0;
+  var okCount = 0;
   for (final id in ids) {
     final command = action == 'resume' ? 'start' : action;
     final requestArgs = <String, dynamic>{'id': id};
@@ -61,8 +71,12 @@ Future<int> runTaskAction(
       stderr.writeln(ctx.theme.error('$id: ${resp.error}'));
       exitCode = 1;
     } else {
+      okCount++;
       ctx.log(ctx.theme.success('$id: $action ok'));
     }
+  }
+  if (ids.length > 1) {
+    ctx.log('$okCount/${ids.length} succeeded.');
   }
   await ctx.client.close();
   return exitCode;

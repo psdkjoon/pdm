@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:pdata/pdata.dart';
 
 const String _bakedVersion = String.fromEnvironment('PDM_VERSION');
-const String _fallbackVersion = '3.0.0';
+const String _fallbackVersion = '3.1.0';
 
 String pdmVersion() {
   if (_bakedVersion.isNotEmpty) return _bakedVersion;

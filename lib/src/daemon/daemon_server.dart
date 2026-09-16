@@ -14,8 +14,8 @@ class DaemonServer {
   final List<Socket> _watchers = [];
   ServerSocket? _server;
   DaemonServer({DownloadManager? manager, SocketAddress? address})
-      : manager = manager ?? DownloadManager(),
-        address = address ?? resolveSocketAddress() {
+    : manager = manager ?? DownloadManager(),
+      address = address ?? resolveSocketAddress() {
     this.manager.events.listen(_broadcastEvent);
   }
   Future<void> start() async {

@@ -11,9 +11,9 @@ enum DownloadStatus {
 }
 
 DownloadStatus statusFromString(String s) => DownloadStatus.values.firstWhere(
-      (e) => e.name == s,
-      orElse: () => DownloadStatus.failed,
-    );
+  (e) => e.name == s,
+  orElse: () => DownloadStatus.failed,
+);
 
 class Schedule {
   final DateTime? at;
@@ -22,17 +22,17 @@ class Schedule {
   const Schedule({this.at, this.every, this.onStartup = false});
   bool get isSet => at != null || every != null || onStartup;
   Map<String, dynamic> toJson() => {
-        'at': at?.toIso8601String(),
-        'everyMs': every?.inMilliseconds,
-        'onStartup': onStartup,
-      };
+    'at': at?.toIso8601String(),
+    'everyMs': every?.inMilliseconds,
+    'onStartup': onStartup,
+  };
   factory Schedule.fromJson(Map<String, dynamic> j) => Schedule(
-        at: j['at'] != null ? DateTime.parse(j['at'] as String) : null,
-        every: j['everyMs'] != null
-            ? Duration(milliseconds: j['everyMs'] as int)
-            : null,
-        onStartup: j['onStartup'] as bool? ?? false,
-      );
+    at: j['at'] != null ? DateTime.parse(j['at'] as String) : null,
+    every: j['everyMs'] != null
+        ? Duration(milliseconds: j['everyMs'] as int)
+        : null,
+    onStartup: j['onStartup'] as bool? ?? false,
+  );
 }
 
 class DownloadRule {
@@ -54,28 +54,29 @@ class DownloadRule {
   });
   bool matches(String url) => RegExp(pattern).hasMatch(url);
   Map<String, dynamic> toJson() => {
-        'pattern': pattern,
-        if (saveDir != null) 'saveDir': saveDir,
-        if (connections != null) 'connections': connections,
-        if (proxy != null) 'proxy': proxy,
-        if (speedLimitBytesPerSec != null) 'speedLimit': speedLimitBytesPerSec,
-        if (headers.isNotEmpty) 'headers': headers,
-        if (onComplete != null) 'onComplete': onComplete,
-      };
+    'pattern': pattern,
+    if (saveDir != null) 'saveDir': saveDir,
+    if (connections != null) 'connections': connections,
+    if (proxy != null) 'proxy': proxy,
+    if (speedLimitBytesPerSec != null) 'speedLimit': speedLimitBytesPerSec,
+    if (headers.isNotEmpty) 'headers': headers,
+    if (onComplete != null) 'onComplete': onComplete,
+  };
   factory DownloadRule.fromJson(Map<String, dynamic> j) => DownloadRule(
-        pattern: (j['pattern'] ?? j['match'] ?? '') as String,
-        saveDir: (j['saveDir'] ?? j['dir']) as String?,
-        connections: j['connections'] as int?,
-        proxy: j['proxy'] as String?,
-        speedLimitBytesPerSec:
-            j['speedLimit'] is int ? j['speedLimit'] as int : null,
-        headers: j['headers'] is Map
-            ? (j['headers'] as Map).map(
-                (k, v) => MapEntry(k.toString(), v.toString()),
-              )
-            : const {},
-        onComplete: j['onComplete'] as String?,
-      );
+    pattern: (j['pattern'] ?? j['match'] ?? '') as String,
+    saveDir: (j['saveDir'] ?? j['dir']) as String?,
+    connections: j['connections'] as int?,
+    proxy: j['proxy'] as String?,
+    speedLimitBytesPerSec: j['speedLimit'] is int
+        ? j['speedLimit'] as int
+        : null,
+    headers: j['headers'] is Map
+        ? (j['headers'] as Map).map(
+            (k, v) => MapEntry(k.toString(), v.toString()),
+          )
+        : const {},
+    onComplete: j['onComplete'] as String?,
+  );
 }
 
 class Segment {
@@ -93,17 +94,17 @@ class Segment {
   int get remaining => length - downloaded;
   bool get isComplete => downloaded >= length;
   Map<String, dynamic> toJson() => {
-        'index': index,
-        'start': start,
-        'end': end,
-        'downloaded': downloaded,
-      };
+    'index': index,
+    'start': start,
+    'end': end,
+    'downloaded': downloaded,
+  };
   factory Segment.fromJson(Map<String, dynamic> j) => Segment(
-        index: j['index'] as int,
-        start: j['start'] as int,
-        end: j['end'] as int,
-        downloaded: j['downloaded'] as int,
-      );
+    index: j['index'] as int,
+    start: j['start'] as int,
+    end: j['end'] as int,
+    downloaded: j['downloaded'] as int,
+  );
 }
 
 class TaskOptions {
@@ -160,87 +161,86 @@ class TaskOptions {
     this.checkDiskSpace = true,
   });
   TaskOptions mergeRule(DownloadRule rule) => TaskOptions(
-        connections: rule.connections ?? connections,
-        headers: {...headers, ...rule.headers},
-        userAgent: userAgent,
-        referer: referer,
-        cookie: cookie,
-        cookieFile: cookieFile,
-        proxy: rule.proxy ?? proxy,
-        proxyUser: proxyUser,
-        proxyPass: proxyPass,
-        proxyBypass: proxyBypass,
-        retries: retries,
-        retryDelayMs: retryDelayMs,
-        retryBackoff: retryBackoff,
-        timeoutSeconds: timeoutSeconds,
-        speedLimitBytesPerSec:
-            rule.speedLimitBytesPerSec ?? speedLimitBytesPerSec,
-        checksumAlgo: checksumAlgo,
-        checksumValue: checksumValue,
-        authUser: authUser,
-        authPass: authPass,
-        insecure: insecure,
-        overwrite: overwrite,
-        priority: priority,
-        maxRedirects: maxRedirects,
-        onComplete: rule.onComplete ?? onComplete,
-        checkDiskSpace: checkDiskSpace,
-      );
+    connections: rule.connections ?? connections,
+    headers: {...headers, ...rule.headers},
+    userAgent: userAgent,
+    referer: referer,
+    cookie: cookie,
+    cookieFile: cookieFile,
+    proxy: rule.proxy ?? proxy,
+    proxyUser: proxyUser,
+    proxyPass: proxyPass,
+    proxyBypass: proxyBypass,
+    retries: retries,
+    retryDelayMs: retryDelayMs,
+    retryBackoff: retryBackoff,
+    timeoutSeconds: timeoutSeconds,
+    speedLimitBytesPerSec: rule.speedLimitBytesPerSec ?? speedLimitBytesPerSec,
+    checksumAlgo: checksumAlgo,
+    checksumValue: checksumValue,
+    authUser: authUser,
+    authPass: authPass,
+    insecure: insecure,
+    overwrite: overwrite,
+    priority: priority,
+    maxRedirects: maxRedirects,
+    onComplete: rule.onComplete ?? onComplete,
+    checkDiskSpace: checkDiskSpace,
+  );
   Map<String, dynamic> toJson() => {
-        'connections': connections,
-        'headers': headers,
-        'userAgent': userAgent,
-        'referer': referer,
-        'cookie': cookie,
-        'cookieFile': cookieFile,
-        'proxy': proxy,
-        'proxyUser': proxyUser,
-        'proxyPass': proxyPass,
-        'proxyBypass': proxyBypass,
-        'retries': retries,
-        'retryDelayMs': retryDelayMs,
-        'retryBackoff': retryBackoff,
-        'timeoutSeconds': timeoutSeconds,
-        'speedLimitBytesPerSec': speedLimitBytesPerSec,
-        'checksumAlgo': checksumAlgo,
-        'checksumValue': checksumValue,
-        'authUser': authUser,
-        'authPass': authPass,
-        'insecure': insecure,
-        'overwrite': overwrite,
-        'priority': priority,
-        'maxRedirects': maxRedirects,
-        'onComplete': onComplete,
-        'checkDiskSpace': checkDiskSpace,
-      };
+    'connections': connections,
+    'headers': headers,
+    'userAgent': userAgent,
+    'referer': referer,
+    'cookie': cookie,
+    'cookieFile': cookieFile,
+    'proxy': proxy,
+    'proxyUser': proxyUser,
+    'proxyPass': proxyPass,
+    'proxyBypass': proxyBypass,
+    'retries': retries,
+    'retryDelayMs': retryDelayMs,
+    'retryBackoff': retryBackoff,
+    'timeoutSeconds': timeoutSeconds,
+    'speedLimitBytesPerSec': speedLimitBytesPerSec,
+    'checksumAlgo': checksumAlgo,
+    'checksumValue': checksumValue,
+    'authUser': authUser,
+    'authPass': authPass,
+    'insecure': insecure,
+    'overwrite': overwrite,
+    'priority': priority,
+    'maxRedirects': maxRedirects,
+    'onComplete': onComplete,
+    'checkDiskSpace': checkDiskSpace,
+  };
   factory TaskOptions.fromJson(Map<String, dynamic> j) => TaskOptions(
-        connections: j['connections'] as int? ?? 4,
-        headers: (j['headers'] as Map?)?.cast<String, String>() ?? const {},
-        userAgent: j['userAgent'] as String?,
-        referer: j['referer'] as String?,
-        cookie: j['cookie'] as String?,
-        cookieFile: j['cookieFile'] as String?,
-        proxy: j['proxy'] as String?,
-        proxyUser: j['proxyUser'] as String?,
-        proxyPass: j['proxyPass'] as String?,
-        proxyBypass: (j['proxyBypass'] as List?)?.cast<String>() ?? const [],
-        retries: j['retries'] as int? ?? 3,
-        retryDelayMs: j['retryDelayMs'] as int? ?? 1000,
-        retryBackoff: j['retryBackoff'] as bool? ?? true,
-        timeoutSeconds: j['timeoutSeconds'] as int? ?? 30,
-        speedLimitBytesPerSec: j['speedLimitBytesPerSec'] as int?,
-        checksumAlgo: j['checksumAlgo'] as String?,
-        checksumValue: j['checksumValue'] as String?,
-        authUser: j['authUser'] as String?,
-        authPass: j['authPass'] as String?,
-        insecure: j['insecure'] as bool? ?? false,
-        overwrite: j['overwrite'] as bool? ?? false,
-        priority: j['priority'] as int? ?? 0,
-        maxRedirects: j['maxRedirects'] as int? ?? 5,
-        onComplete: j['onComplete'] as String?,
-        checkDiskSpace: j['checkDiskSpace'] as bool? ?? true,
-      );
+    connections: j['connections'] as int? ?? 4,
+    headers: (j['headers'] as Map?)?.cast<String, String>() ?? const {},
+    userAgent: j['userAgent'] as String?,
+    referer: j['referer'] as String?,
+    cookie: j['cookie'] as String?,
+    cookieFile: j['cookieFile'] as String?,
+    proxy: j['proxy'] as String?,
+    proxyUser: j['proxyUser'] as String?,
+    proxyPass: j['proxyPass'] as String?,
+    proxyBypass: (j['proxyBypass'] as List?)?.cast<String>() ?? const [],
+    retries: j['retries'] as int? ?? 3,
+    retryDelayMs: j['retryDelayMs'] as int? ?? 1000,
+    retryBackoff: j['retryBackoff'] as bool? ?? true,
+    timeoutSeconds: j['timeoutSeconds'] as int? ?? 30,
+    speedLimitBytesPerSec: j['speedLimitBytesPerSec'] as int?,
+    checksumAlgo: j['checksumAlgo'] as String?,
+    checksumValue: j['checksumValue'] as String?,
+    authUser: j['authUser'] as String?,
+    authPass: j['authPass'] as String?,
+    insecure: j['insecure'] as bool? ?? false,
+    overwrite: j['overwrite'] as bool? ?? false,
+    priority: j['priority'] as int? ?? 0,
+    maxRedirects: j['maxRedirects'] as int? ?? 5,
+    onComplete: j['onComplete'] as String?,
+    checkDiskSpace: j['checkDiskSpace'] as bool? ?? true,
+  );
 }
 
 class TaskRecord {
@@ -271,10 +271,10 @@ class TaskRecord {
     DateTime? updatedAt,
     this.startPaused = false,
     this.schedule,
-  })  : options = options ?? const TaskOptions(),
-        segments = segments ?? [],
-        createdAt = createdAt ?? DateTime.now(),
-        updatedAt = updatedAt ?? DateTime.now();
+  }) : options = options ?? const TaskOptions(),
+       segments = segments ?? [],
+       createdAt = createdAt ?? DateTime.now(),
+       updatedAt = updatedAt ?? DateTime.now();
   int get connections => options.connections;
   int get downloadedBytes =>
       segments.fold<int>(0, (sum, s) => sum + s.downloaded);
@@ -284,41 +284,39 @@ class TaskRecord {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'url': url,
-        'savePath': savePath,
-        'status': status.name,
-        'totalBytes': totalBytes,
-        'supportsRange': supportsRange,
-        'options': options.toJson(),
-        'segments': segments.map((s) => s.toJson()).toList(),
-        'error': error,
-        'createdAt': createdAt.toIso8601String(),
-        'updatedAt': updatedAt.toIso8601String(),
-        'startPaused': startPaused,
-        'schedule': schedule?.toJson(),
-      };
+    'id': id,
+    'url': url,
+    'savePath': savePath,
+    'status': status.name,
+    'totalBytes': totalBytes,
+    'supportsRange': supportsRange,
+    'options': options.toJson(),
+    'segments': segments.map((s) => s.toJson()).toList(),
+    'error': error,
+    'createdAt': createdAt.toIso8601String(),
+    'updatedAt': updatedAt.toIso8601String(),
+    'startPaused': startPaused,
+    'schedule': schedule?.toJson(),
+  };
   factory TaskRecord.fromJson(Map<String, dynamic> j) => TaskRecord(
-        id: j['id'] as String,
-        url: j['url'] as String,
-        savePath: j['savePath'] as String,
-        status: statusFromString(j['status'] as String),
-        totalBytes: j['totalBytes'] as int?,
-        supportsRange: j['supportsRange'] as bool? ?? false,
-        options: j['options'] != null
-            ? TaskOptions.fromJson(
-                (j['options'] as Map).cast<String, dynamic>(),
-              )
-            : const TaskOptions(),
-        segments: (j['segments'] as List)
-            .map((e) => Segment.fromJson((e as Map).cast<String, dynamic>()))
-            .toList(),
-        error: j['error'] as String?,
-        createdAt: DateTime.parse(j['createdAt'] as String),
-        updatedAt: DateTime.parse(j['updatedAt'] as String),
-        startPaused: j['startPaused'] as bool? ?? false,
-        schedule: j['schedule'] != null
-            ? Schedule.fromJson((j['schedule'] as Map).cast<String, dynamic>())
-            : null,
-      );
+    id: j['id'] as String,
+    url: j['url'] as String,
+    savePath: j['savePath'] as String,
+    status: statusFromString(j['status'] as String),
+    totalBytes: j['totalBytes'] as int?,
+    supportsRange: j['supportsRange'] as bool? ?? false,
+    options: j['options'] != null
+        ? TaskOptions.fromJson((j['options'] as Map).cast<String, dynamic>())
+        : const TaskOptions(),
+    segments: (j['segments'] as List)
+        .map((e) => Segment.fromJson((e as Map).cast<String, dynamic>()))
+        .toList(),
+    error: j['error'] as String?,
+    createdAt: DateTime.parse(j['createdAt'] as String),
+    updatedAt: DateTime.parse(j['updatedAt'] as String),
+    startPaused: j['startPaused'] as bool? ?? false,
+    schedule: j['schedule'] != null
+        ? Schedule.fromJson((j['schedule'] as Map).cast<String, dynamic>())
+        : null,
+  );
 }
